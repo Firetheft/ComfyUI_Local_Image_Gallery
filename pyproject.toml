@@ -1,5 +1,5 @@
 [project]
-name = "local_image_gallery"
+name = "ComfyUI_Local_Image_Gallery"
 description = "The Ultimate Local File Manager for Images, Videos, and Audio in ComfyUI"
 version = "1.0.1"
 license = {file = "LICENSE"} 
