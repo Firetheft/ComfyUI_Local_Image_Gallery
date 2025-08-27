@@ -85,77 +85,63 @@ class LocalImageGalleryNode:
     def get_selected_media(self, unique_id):
         selections = load_selections()
         node_selections = selections.get(str(unique_id), {})
-        
+
         image_paths = node_selections.get("image", [])
         video_paths = node_selections.get("video", [])
         audio_paths = node_selections.get("audio", [])
-        
-        if not image_paths:
-            return (torch.zeros(1, 1, 1, 3), "", "", "[]")
 
-        sizes = {}
-        valid_image_paths = []
-        for media_path in image_paths:
-            if os.path.exists(media_path):
-                try:
-                    with Image.open(media_path) as img:
-                        sizes[img.size] = sizes.get(img.size, 0) + 1
-                        valid_image_paths.append(media_path)
-                except Exception as e:
-                    print(f"LMM: Error reading size for {media_path}: {e}")
-        
-        if not valid_image_paths:
-             return (torch.zeros(1, 1, 1, 3), "", "", "[]")
-        
-        dominant_size = max(sizes.items(), key=lambda x: x[1])[0]
-        target_width, target_height = dominant_size
-        
         image_tensors = []
         info_strings = []
+        final_image_tensor = torch.zeros(1, 1, 1, 3)
 
-        for media_path in valid_image_paths:
-            try:
-                with Image.open(media_path) as img:
-                    img_out = img.convert("RGB")
-                    
-                    if img.size[0] != target_width or img.size[1] != target_height:
+        if image_paths:
+            sizes = {}
+            valid_image_paths = []
+            for media_path in image_paths:
+                if os.path.exists(media_path):
+                    try:
+                        with Image.open(media_path) as img:
+                            sizes[img.size] = sizes.get(img.size, 0) + 1
+                            valid_image_paths.append(media_path)
+                    except Exception as e:
+                        print(f"LMM: Error reading size for {media_path}: {e}")
 
-                        img_array_pre = np.array(img_out).astype(np.float32) / 255.0
-                        tensor_pre = torch.from_numpy(img_array_pre)[None,].permute(0, 3, 1, 2)
-                        
-                        tensor_post = common_upscale(tensor_pre, target_width, target_height, "lanczos", "center")
-                        
-                        img_array = tensor_post.permute(0, 2, 3, 1).cpu().numpy().squeeze(0)
-                    else:
-                        img_array = np.array(img_out).astype(np.float32) / 255.0
+            if valid_image_paths:
+                dominant_size = max(sizes.items(), key=lambda x: x[1])[0]
+                target_width, target_height = dominant_size
 
-                    image_tensor = torch.from_numpy(img_array)[None,]
-                    image_tensors.append(image_tensor)
+                for media_path in valid_image_paths:
+                    try:
+                        with Image.open(media_path) as img:
+                            img_out = img.convert("RGB")
+                            if img.size[0] != target_width or img.size[1] != target_height:
+                                img_array_pre = np.array(img_out).astype(np.float32) / 255.0
+                                tensor_pre = torch.from_numpy(img_array_pre)[None,].permute(0, 3, 1, 2)
+                                tensor_post = common_upscale(tensor_pre, target_width, target_height, "lanczos", "center")
+                                img_array = tensor_post.permute(0, 2, 3, 1).cpu().numpy().squeeze(0)
+                            else:
+                                img_array = np.array(img_out).astype(np.float32) / 255.0
+                            image_tensor = torch.from_numpy(img_array)[None,]
+                            image_tensors.append(image_tensor)
 
-                    full_info = {"filename": os.path.basename(media_path), "width": img.width, "height": img.height, "mode": img.mode, "format": img.format}
-                    metadata = {}
-                    if 'parameters' in img.info: metadata['parameters'] = img.info['parameters']
-                    if 'prompt' in img.info: metadata['prompt'] = img.info['prompt']
-                    if 'workflow' in img.info: metadata['workflow'] = img.info['workflow']
+                            full_info = {"filename": os.path.basename(media_path), "width": img.width, "height": img.height, "mode": img.mode, "format": img.format}
+                            metadata = {}
+                            if 'parameters' in img.info: metadata['parameters'] = img.info['parameters']
+                            if 'prompt' in img.info: metadata['prompt'] = img.info['prompt']
+                            if 'workflow' in img.info: metadata['workflow'] = img.info['workflow']
+                            if metadata: full_info['metadata'] = metadata
+                            info_strings.append(json.dumps(full_info, ensure_ascii=False))
+                    except Exception as e:
+                        print(f"LMM: Error processing image {media_path}: {e}")
 
-                    if metadata: full_info['metadata'] = metadata
-                    info_strings.append(json.dumps(full_info, ensure_ascii=False))
-
-            except Exception as e:
-                print(f"LMM: Error processing image {media_path}: {e}")
-
-        if not image_tensors:
-            return (torch.zeros(1, 1, 1, 3), "", "", "[]")
-
-        final_image_tensor = torch.cat(image_tensors, dim=0)
+                if image_tensors:
+                    final_image_tensor = torch.cat(image_tensors, dim=0)
 
         info_string_out = json.dumps(info_strings, indent=4, ensure_ascii=False)
-
         if len(info_strings) == 1:
             try:
                 single_info = json.loads(info_strings[0])
                 workflow_data_str = single_info.get("metadata", {}).get("workflow")
-
                 if workflow_data_str:
                     try:
                         workflow_json = json.loads(workflow_data_str)
@@ -166,8 +152,8 @@ class LocalImageGalleryNode:
                 print(f"LMM: Could not parse workflow info, falling back to default. Error: {e}")
                 pass
 
-        video_path_out = video_paths[0] if video_paths and os.path.exists(video_paths[0]) else ""
-        audio_path_out = audio_paths[0] if audio_paths and os.path.exists(audio_paths[0]) else ""
+        video_path_out = video_paths[0] if video_paths and os.path.exists(os.path.normpath(video_paths[0])) else ""
+        audio_path_out = audio_paths[0] if audio_paths and os.path.exists(os.path.normpath(audio_paths[0])) else ""
 
         return (final_image_tensor, video_path_out, audio_path_out, info_string_out,)
 
