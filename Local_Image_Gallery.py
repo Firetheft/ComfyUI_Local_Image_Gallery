@@ -246,8 +246,11 @@ async def get_local_images(request):
     show_audio = request.query.get('show_audio', 'false').lower() == 'true'
     filter_tag = request.query.get('filter_tag', '').strip().lower()
 
-    page = int(request.query.get('page', 1)); per_page = int(request.query.get('per_page', 50))
-    sort_by = request.query.get('sort_by', 'name'); sort_order = request.query.get('sort_order', 'asc')
+    page = int(request.query.get('page', 1))
+    per_page = int(request.query.get('per_page', 50))
+
+    sort_by = request.query.get('sort_by', 'name')
+    sort_order = request.query.get('sort_order', 'asc')
 
     metadata = load_metadata()
     all_items_with_meta = []
@@ -324,7 +327,8 @@ async def get_local_images(request):
         parent_directory = os.path.dirname(directory) if search_mode != 'global' else None
         if parent_directory == directory: parent_directory = None
 
-        start = (page - 1) * per_page; end = start + per_page
+        start = (page - 1) * per_page
+        end = start + per_page
         paginated_items = all_items_with_meta[start:end]
 
         return web.json_response({
