@@ -352,6 +352,45 @@ async def set_ui_state(request):
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
+@prompt_server.routes.post("/local_image_gallery/get_selected_items")
+async def get_selected_items(request):
+    try:
+        data = await request.json()
+        selection = data.get("selection", [])
+
+        metadata = load_metadata()
+        all_items_with_meta = []
+
+        for item_data in selection:
+            path = item_data.get("path")
+            if path and os.path.exists(path):
+                try:
+                    stats = os.stat(path)
+                    item_meta = metadata.get(path, {})
+
+                    item_info = {
+                        'path': path, 
+                        'name': os.path.basename(path), 
+                        'type': item_data.get("type"),
+                        'mtime': stats.st_mtime, 
+                        'rating': item_meta.get('rating', 0), 
+                        'tags': item_meta.get('tags', [])
+                    }
+                    all_items_with_meta.append(item_info)
+                except (PermissionError, FileNotFoundError):
+                    continue
+
+        return web.json_response({
+            "items": all_items_with_meta,
+            "total_pages": 1,
+            "current_page": 1,
+            "current_directory": "Selected Items",
+            "parent_directory": None,
+            "is_global_search": False 
+        })
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
 @prompt_server.routes.get("/local_image_gallery/get_ui_state")
 async def get_ui_state(request):
     try:
@@ -363,7 +402,7 @@ async def get_ui_state(request):
 
         default_state = {
             "last_path": "",
-            "selected_paths": [],
+            "selection": [],
             "sort_by": "name",
             "sort_order": "asc",
             "show_videos": False,

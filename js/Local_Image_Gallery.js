@@ -121,7 +121,8 @@ app.registerExtension({
                         #${uniqueId} .lmm-tag-editor { display: none; flex-wrap: wrap; gap: 5px; background-color: #2a2a2a; padding: 5px; border-radius: 4px; }
                         #${uniqueId} .lmm-tag-editor.lmm-visible { display: flex; }
                         #${uniqueId} .lmm-tag-editor-list { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-                        #${uniqueId} .lmm-tag-editor-list .lmm-tag .lmm-remove-tag { margin-left: 4px; color: #fdd; cursor: pointer; font-weight: bold; } /* 新增: font-weight */
+                        #${uniqueId} .lmm-tag-editor-list .lmm-tag .lmm-remove-tag { margin-left: 4px; color: #fdd; cursor: pointer; font-weight: bold; }
+                        #${uniqueId} .lmm-show-selected-btn.active { background-color: #4A90E2; color: white; border-color: #4A90E2; }
                         #${uniqueId} .lmm-tag-filter-wrapper { display: flex; flex-grow: 1; position: relative; align-items: center; }
                         #${uniqueId} .lmm-tag-filter-wrapper input { flex-grow: 1; }
                         #${uniqueId} .lmm-clear-tag-filter-button {
@@ -153,6 +154,7 @@ app.registerExtension({
                             <div style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
                                 <label>Show Videos:</label> <input type="checkbox" class="lmm-show-videos">
                                 <label>Show Audio:</label> <input type="checkbox" class="lmm-show-audio">
+                                <button class="lmm-show-selected-btn" title="Show all selected items across folders">Show Selected</button>
                             </div>
                         </div>
                         <div class="lmm-controls" style="gap: 5px;">
@@ -191,10 +193,12 @@ app.registerExtension({
                 const tagEditorInput = controls.querySelector(".lmm-tag-editor-input");
                 const tagEditorList = controls.querySelector(".lmm-tag-editor-list");
                 const selectedCountEl = controls.querySelector(".selected-count");
+                const showSelectedButton = controls.querySelector(".lmm-show-selected-btn");
 
                 let isLoading = false, currentPage = 1, totalPages = 1, parentDir = null;
-                let selectedCards = [];
-                let initialSelectedPaths = [];
+                let selection = [];
+                let showSelectedMode = false;
+                let lastKnownPath = "";
                 let selectedCardsForEditing = new Set();
 
                 const debounce = (func, delay) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => func.apply(this, args), delay); }; };
@@ -276,12 +280,17 @@ app.registerExtension({
 
                 function renderSelectionBadges() {
                     galleryContainer.querySelectorAll('.lmm-selection-badge').forEach(badge => badge.remove());
+                    const visibleSelectedCards = Array.from(cardholder.querySelectorAll('.lmm-gallery-card.lmm-selected'));
 
-                    selectedCards.forEach((card, index) => {
-                        const badge = document.createElement('div');
-                        badge.className = 'lmm-selection-badge';
-                        badge.textContent = index;
-                        card.querySelector('.lmm-card-media-wrapper').appendChild(badge);
+                    visibleSelectedCards.forEach(card => {
+                        const path = card.dataset.path;
+                        const index = selection.findIndex(item => item.path === path);
+                        if (index > -1) {
+                            const badge = document.createElement('div');
+                            badge.className = 'lmm-selection-badge';
+                            badge.textContent = index;
+                            card.querySelector('.lmm-card-media-wrapper').appendChild(badge);
+                        }
                     });
                 }
 
@@ -335,7 +344,129 @@ app.registerExtension({
                 }
                 
                 const fetchImages = async (page = 1, append = false) => {
-                    if (isLoading) return; isLoading = true;
+                    if (isLoading) return; 
+                    isLoading = true;
+                    updateShowSelectedButtonUI();
+
+                    if (showSelectedMode) {
+                        cardholder.style.opacity = 0; 
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        
+                        if (selection.length === 0) {
+                            cardholder.innerHTML = "<p>No items selected.</p>";
+                            cardholder.style.opacity = 1;
+                            isLoading = false;
+                            return;
+                        }
+                        
+                        cardholder.innerHTML = "<p>Loading selected items...</p>";
+                        currentPage = 1;
+
+                        try {
+                            const response = await api.fetchApi("/local_image_gallery/get_selected_items", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ selection: selection }),
+                            });
+
+                            if (!response.ok) { 
+                                const errorData = await response.json(); 
+                                throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`); 
+                            }
+                            const api_data = await response.json();
+                            const items = api_data.items || [];
+
+                            cardholder.innerHTML = "";
+                            pathInput.value = "Selected Items";
+                            pathInput.disabled = true;
+                            upButton.disabled = true;
+                            
+                            items.forEach(item => {
+                                const card = document.createElement("div");
+                                card.className = "lmm-gallery-card";
+                                card.dataset.path = item.path;
+                                card.dataset.type = item.type;
+                                card.dataset.tags = item.tags.join(',');
+                                card.dataset.rating = item.rating;
+                                card.title = item.name;
+
+                                let mediaHTML = "";
+                                if (item.type === 'image') {
+                                    mediaHTML = `<div class="lmm-card-media-wrapper"><img src="/local_image_gallery/thumbnail?filepath=${encodeURIComponent(item.path)}" loading="lazy"></div>`;
+                                } else if (item.type === 'video') {
+                                    mediaHTML = `<div class="lmm-card-media-wrapper"><video src="/local_image_gallery/view?filepath=${encodeURIComponent(item.path)}#t=0.1" loop muted playsinline></video><div class="lmm-video-card-overlay">${videoSVG}</div></div>`;
+                                } else if (item.type === 'audio') {
+                                    mediaHTML = `<div class="lmm-card-media-wrapper"><div class="lmm-audio-card"><div class="lmm-audio-icon">${audioSVG}</div><div class="lmm-audio-name">${item.name}</div></div></div>`;
+                                }
+                                card.innerHTML = mediaHTML;
+                                
+                                const infoPanel = document.createElement("div");
+                                infoPanel.className = 'lmm-card-info-panel';
+                                const stars = Array.from({length: 5}, (_, i) => `<span class="lmm-star" data-value="${i + 1}">☆</span>`).join('');
+                                const tags = item.tags.map(t => `<span class="lmm-tag">${t}</span>`).join('');
+                                infoPanel.innerHTML = `
+                                    <div class="lmm-star-rating">${stars}</div>
+                                    <div class="lmm-tag-list">${tags}</div>
+                                    <div class="edit-tags-btn">✏️</div> 
+                                `;
+                                card.appendChild(infoPanel);
+                                
+                                const editBtn = infoPanel.querySelector(".edit-tags-btn");
+                                editBtn.addEventListener("click", (e) => {
+                                    e.stopPropagation();
+                                    if (e.ctrlKey) {
+                                        if (selectedCardsForEditing.has(card)) {
+                                            selectedCardsForEditing.delete(card);
+                                            card.classList.remove("lmm-edit-selected");
+                                        } else {
+                                            selectedCardsForEditing.add(card);
+                                            card.classList.add("lmm-edit-selected");
+                                        }
+                                    } else {
+                                        if (selectedCardsForEditing.has(card) && selectedCardsForEditing.size === 1) {
+                                            selectedCardsForEditing.clear();
+                                            card.classList.remove("lmm-edit-selected");
+                                        } else {
+                                            galleryContainer.querySelectorAll('.lmm-gallery-card.lmm-edit-selected').forEach(c => c.classList.remove("lmm-edit-selected"));
+                                            selectedCardsForEditing.clear();
+                                            selectedCardsForEditing.add(card);
+                                            card.classList.add("lmm-edit-selected");
+                                        }
+                                    }
+                                    renderTagEditor();
+                                });
+                                
+                                cardholder.appendChild(card);
+                                const starRating = card.querySelector('.lmm-star-rating');
+                                if (starRating) {
+                                    const stars = starRating.querySelectorAll('.lmm-star');
+                                    const rating = parseInt(item.rating || 0);
+                                    stars.forEach((star, index) => {
+                                        if (index < rating) {
+                                            star.innerHTML = '★';
+                                            star.classList.add('lmm-rated');
+                                        }
+                                    });
+                                }
+                                const img = card.querySelector("img");
+                                if(img) img.onload = debouncedLayout;
+                                const video = card.querySelector("video");
+                                if(video) video.onloadeddata = debouncedLayout;
+                            });
+                            
+                            cardholder.querySelectorAll('.lmm-gallery-card').forEach(card => card.classList.add('lmm-selected'));
+                            renderSelectionBadges();
+                            
+                        } catch (error) { 
+                            cardholder.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`; 
+                        } finally { 
+                            isLoading = false; 
+                            cardholder.style.opacity = 1; 
+                            requestAnimationFrame(debouncedLayout);
+                        }
+                        return;
+                    }
+
                     if (!append) { cardholder.style.opacity = 0; await new Promise(resolve => setTimeout(resolve, 200)); cardholder.innerHTML = "<p>Loading...</p>"; currentPage = 1; }
 
                     const directory = pathInput.value;
@@ -350,10 +481,9 @@ app.registerExtension({
                     const sortOrder = controls.querySelector(".lmm-sort-order").value;
                     let url = `/local_image_gallery/images?directory=${encodeURIComponent(directory)}&page=${page}&sort_by=${sortBy}&sort_order=${sortOrder}&show_videos=${showVideos}&show_audio=${showAudio}&filter_tag=${encodeURIComponent(filterTag)}&search_mode=${isGlobalSearch ? 'global' : 'local'}`;
 
-                    const pathsToPin = initialSelectedPaths.length > 0 ? initialSelectedPaths : selectedCards.map(c => c.dataset.path);
-                    if (pathsToPin.length > 0) {
-                        pathsToPin.forEach(path => {
-                            url += `&selected_paths=${encodeURIComponent(path)}`;
+                    if (selection.length > 0) {
+                        selection.forEach(item => {
+                            url += `&selected_paths=${encodeURIComponent(item.path)}`;
                         });
                     }
 
@@ -369,6 +499,7 @@ app.registerExtension({
 
                         if (!api_data.is_global_search) {
                             pathInput.value = api_data.current_directory;
+                            lastKnownPath = api_data.current_directory;
                             setUiState(this.id, { last_path: api_data.current_directory });
                         }
                         pathInput.disabled = api_data.is_global_search;
@@ -461,21 +592,12 @@ app.registerExtension({
                             cardholder.innerHTML = `<p>${api_data.is_global_search ? 'No items found for this tag.' : 'The folder is empty.'}</p>`;
                         }
 
-                        if (initialSelectedPaths.length > 0) {
-                            const allCardsInGallery = Array.from(cardholder.querySelectorAll('.lmm-gallery-card'));
-                            const newSelectedCards = [];
-
-                            initialSelectedPaths.forEach(path => {
-                                const cardToSelect = allCardsInGallery.find(c => c.dataset.path === path);
-                                if (cardToSelect) {
-                                    cardToSelect.classList.add('lmm-selected');
-                                    newSelectedCards.push(cardToSelect);
-                                }
-                            });
-                            selectedCards = newSelectedCards;
-                            renderSelectionBadges();
-                            initialSelectedPaths = [];
-                        }
+                        cardholder.querySelectorAll('.lmm-gallery-card').forEach(card => {
+                            if (selection.some(item => item.path === card.dataset.path)) {
+                                card.classList.add('lmm-selected');
+                            }
+                        });
+                        renderSelectionBadges();
 
                         requestAnimationFrame(debouncedLayout); 
                         currentPage = page;
@@ -515,46 +637,41 @@ app.registerExtension({
                         pathInput.value = path;
                         globalSearchCheckbox.checked = false;
                         tagFilterInput.value = "";
-                        fetchImages(1, false);
+                        resetAndReload();
                         return;
                     }
 
                     if (['image', 'video', 'audio'].includes(type)) {
-                        const cardIndex = selectedCards.indexOf(card);
+                        const selectionIndex = selection.findIndex(item => item.path === path);
 
                         if (event.ctrlKey) {
-                            if (cardIndex > -1) {
-                                selectedCards.splice(cardIndex, 1);
+                            if (selectionIndex > -1) {
+                                selection.splice(selectionIndex, 1);
                                 card.classList.remove('lmm-selected');
                             } else {
-                                selectedCards.push(card);
+                                selection.push({ path, type });
                                 card.classList.add('lmm-selected');
                             }
                         } else {
-                            selectedCards.forEach(c => c.classList.remove('lmm-selected'));
-                            if (cardIndex > -1 && selectedCards.length === 1) {
-                                selectedCards = [];
+                            if (selectionIndex > -1 && selection.length === 1) {
+                                selection = [];
+                                card.classList.remove('lmm-selected');
                             } else {
-                                selectedCards = [card];
+                                cardholder.querySelectorAll('.lmm-gallery-card.lmm-selected').forEach(c => c.classList.remove('lmm-selected'));
+                                selection = [{ path, type }];
                                 card.classList.add('lmm-selected');
                             }
                         }
 
                         renderSelectionBadges();
 
-                        const selectionsForBackend = selectedCards.map(c => ({
-                            path: c.dataset.path,
-                            type: c.dataset.type
-                        }));
-
-                        const selectedPaths = selectedCards.map(c => c.dataset.path);
-                        setUiState(this.id, { selected_paths: selectedPaths });
+                        setUiState(this.id, { selection: selection });
 
                         try { 
                             await api.fetchApi("/local_image_gallery/set_node_selection", { 
                                 method: "POST", 
                                 headers: { "Content-Type": "application/json" }, 
-                                body: JSON.stringify({ node_id: this.id, selections: selectionsForBackend }), 
+                                body: JSON.stringify({ node_id: this.id, selections: selection }), 
                             });
                         } catch(e) { console.error("An error occurred while sending data to the backend:", e); }
                     }
@@ -661,6 +778,7 @@ app.registerExtension({
                         show_audio: showAudioCheckbox.checked,
                         filter_tag: tagFilterInput.value,
                         global_search: globalSearchCheckbox.checked,
+                        show_selected_mode: showSelectedMode,
                     };
                     setUiState(this.id, state);
                 };
@@ -670,12 +788,7 @@ app.registerExtension({
                     resetAndReload();
                 };
 
-                const resetAndReload = () => {
-                    if (selectedCards.length > 0) {
-                        initialSelectedPaths = selectedCards.map(card => card.dataset.path);
-                    }
-                    fetchImages(1, false);
-                };
+                const resetAndReload = () => { fetchImages(1, false); };
                 controls.querySelector('.lmm-refresh-button').onclick = saveStateAndReload;
                 tagFilterInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveStateAndReload(); });
                 tagEditorInput.addEventListener('keydown', async (e) => {
@@ -742,6 +855,27 @@ app.registerExtension({
                 });
 
                 upButton.onclick = () => { if(parentDir){ pathInput.value = parentDir; globalSearchCheckbox.checked = false; tagFilterInput.value = ""; resetAndReload(); } };
+
+                const updateShowSelectedButtonUI = () => {
+                    if (showSelectedMode) {
+                        showSelectedButton.classList.add('active');
+                        showSelectedButton.textContent = `Show Folder (${selection.length})`;
+                        showSelectedButton.title = "Return to the current folder view";
+                    } else {
+                        showSelectedButton.classList.remove('active');
+                        showSelectedButton.textContent = "Show Selected";
+                        showSelectedButton.title = "Show all selected items across folders";
+                    }
+                };
+
+                showSelectedButton.addEventListener('click', () => {
+                    showSelectedMode = !showSelectedMode;
+                    if (!showSelectedMode) {
+                        pathInput.value = lastKnownPath;
+                    }
+                    saveStateAndReload();
+                });
+
                 cardholder.onscroll = () => { if (cardholder.scrollTop + cardholder.clientHeight >= cardholder.scrollHeight - 300 && !isLoading && currentPage < totalPages) { fetchImages(currentPage + 1, true); } };
 
                 const clearTagFilterButton = controls.querySelector(".lmm-clear-tag-filter-button");
@@ -771,11 +905,13 @@ app.registerExtension({
                             showAudioCheckbox.checked = state.show_audio;
                             tagFilterInput.value = state.filter_tag;
                             globalSearchCheckbox.checked = state.global_search;
+                            showSelectedMode = state.show_selected_mode || false;
 
-                            initialSelectedPaths = state.selected_paths || [];
+                            selection = state.selection || [];
 
                             if (state.last_path) {
                                 pathInput.value = state.last_path;
+                                lastKnownPath = state.last_path;
                                 resetAndReload();
                             }
                         }
