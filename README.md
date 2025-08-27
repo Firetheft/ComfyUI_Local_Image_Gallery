@@ -12,6 +12,12 @@
 
 ## 🇬🇧 English
 
+### Update Log (2025-08-27)
+* **Major Upgrade**: Implemented a comprehensive **Workflow Memory** system. The node now remembers all UI settings (path, selections, sorting, filters) and restores them on reload.
+* **Advanced Features**: Added **Multi-Select** with sequence numbers (`Ctrl+Click`), batch **Tag Editing**, and intelligent **Batch Processing** for images of different sizes.
+
+---
+
 ### Overview
 
 **ComfyUI Local Media Manager** has evolved into a powerful, feature-rich custom node that integrates a seamless local file management system directly into your ComfyUI workflow. This single, unified node allows you to browse, manage, and select local images, videos, and audio files, and instantly import them or their metadata into your projects. It eliminates the need to constantly switch to your OS file explorer, dramatically speeding up your creative and organizational process.
@@ -74,6 +80,12 @@ The gallery features a fluid waterfall (masonry) layout, smooth transitions, and
 ---
 
 ## 🇨🇳 中文
+
+### 更新日志 (2025-08-27)
+* **重大升级**: 实现了完整的 **工作流记忆** 系统。节点现在可以记住所有UI设置（路径、选择项、排序、筛选）并在重载后恢复。
+* **高级功能**: 新增了带序号的 **多选功能** (`Ctrl+单击`)、批量 **标签编辑**，以及对不同尺寸图片的智能 **批处理**。
+
+---
 
 ### 概述
 
