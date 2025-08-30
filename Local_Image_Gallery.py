@@ -16,7 +16,7 @@ METADATA_FILE = os.path.join(NODE_DIR, "metadata.json")
 UI_STATE_FILE = os.path.join(NODE_DIR, "lig_ui_state.json")
 SUPPORTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp']
 SUPPORTED_VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.mkv', '.avi']
-SUPPORTED_AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.flac']
+SUPPORTED_AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.flac', '.m4a']
 
 def save_config(data):
     try:
@@ -244,11 +244,13 @@ async def get_local_images(request):
 
     show_videos = request.query.get('show_videos', 'false').lower() == 'true'
     show_audio = request.query.get('show_audio', 'false').lower() == 'true'
-    filter_tag = request.query.get('filter_tag', '').strip().lower()
+
+    filter_tags_str = request.query.get('filter_tag', '').strip().lower()
+    filter_tags = [tag.strip() for tag in filter_tags_str.split(',') if tag.strip()]
+    filter_mode = request.query.get('filter_mode', 'OR').upper()
 
     page = int(request.query.get('page', 1))
     per_page = int(request.query.get('per_page', 50))
-
     sort_by = request.query.get('sort_by', 'name')
     sort_order = request.query.get('sort_order', 'asc')
 
@@ -256,17 +258,24 @@ async def get_local_images(request):
     all_items_with_meta = []
 
     try:
-        if search_mode == 'global' and filter_tag:
+        def check_tags(item_tags):
+            if not filter_tags:
+                return True
+            if filter_mode == 'AND':
+                return all(ft in item_tags for ft in filter_tags)
+            else:
+                return any(ft in item_tags for ft in filter_tags)
+
+        if search_mode == 'global' and filter_tags:
             for path, meta in metadata.items():
                 if os.path.exists(path):
                     tags = [t.lower() for t in meta.get('tags', [])]
-                    if filter_tag in tags:
+                    if check_tags(tags):
                         ext = os.path.splitext(path)[1].lower()
                         item_type = ''
                         if ext in SUPPORTED_IMAGE_EXTENSIONS: item_type = 'image'
                         elif show_videos and ext in SUPPORTED_VIDEO_EXTENSIONS: item_type = 'video'
                         elif show_audio and ext in SUPPORTED_AUDIO_EXTENSIONS: item_type = 'audio'
-
                         if item_type:
                             try:
                                 stats = os.stat(path)
@@ -275,16 +284,18 @@ async def get_local_images(request):
                                     'mtime': stats.st_mtime, 'rating': meta.get('rating', 0), 'tags': meta.get('tags', [])
                                 })
                             except: continue
-        else:
+        elif search_mode == 'local':
             for item in os.listdir(directory):
                 full_path = os.path.join(directory, item)
                 try:
                     stats = os.stat(full_path)
                     item_meta = metadata.get(full_path, {})
-                    rating = item_meta.get('rating', 0)
                     tags = [t.lower() for t in item_meta.get('tags', [])]
-                    if filter_tag and filter_tag not in tags: continue
-                    item_data = {'path': full_path, 'name': item, 'mtime': stats.st_mtime, 'rating': rating, 'tags': item_meta.get('tags', [])}
+
+                    if not check_tags(tags):
+                        continue
+
+                    item_data = {'path': full_path, 'name': item, 'mtime': stats.st_mtime, 'rating': item_meta.get('rating', 0), 'tags': item_meta.get('tags', [])}
                     if os.path.isdir(full_path):
                         all_items_with_meta.append({**item_data, 'type': 'dir'})
                     else:
@@ -306,35 +317,28 @@ async def get_local_images(request):
                     pinned_items_dict[path] = item
                 else:
                     remaining_items.append(item)
-
             for path in selected_paths:
                 if pinned_items_dict[path]:
                     pinned_items.append(pinned_items_dict[path])
-
             all_items_with_meta = remaining_items
 
         reverse_order = sort_order == 'desc'
         if sort_by == 'date': all_items_with_meta.sort(key=lambda x: x['mtime'], reverse=reverse_order)
         elif sort_by == 'rating': all_items_with_meta.sort(key=lambda x: x.get('rating', 0), reverse=reverse_order)
         else: all_items_with_meta.sort(key=lambda x: x['name'].lower(), reverse=reverse_order)
-
         if search_mode != 'global':
             all_items_with_meta.sort(key=lambda x: x['type'] != 'dir')
-
         if pinned_items:
             all_items_with_meta = pinned_items + all_items_with_meta
-
         parent_directory = os.path.dirname(directory) if search_mode != 'global' else None
         if parent_directory == directory: parent_directory = None
-
         start = (page - 1) * per_page
         end = start + per_page
         paginated_items = all_items_with_meta[start:end]
-
         return web.json_response({
             "items": paginated_items, "total_pages": (len(all_items_with_meta) + per_page - 1) // per_page,
             "current_page": page, "current_directory": directory, "parent_directory": parent_directory,
-            "is_global_search": search_mode == 'global' and filter_tag
+            "is_global_search": search_mode == 'global' and filter_tags
         })
     except Exception as e: return web.json_response({"error": str(e)}, status=500)
 

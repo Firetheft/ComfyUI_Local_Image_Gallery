@@ -125,6 +125,35 @@ app.registerExtension({
                         #${uniqueId} .lmm-show-selected-btn.active { background-color: #4A90E2; color: white; border-color: #4A90E2; }
                         #${uniqueId} .lmm-tag-filter-wrapper { display: flex; flex-grow: 1; position: relative; align-items: center; }
                         #${uniqueId} .lmm-tag-filter-wrapper input { flex-grow: 1; }
+                        #${uniqueId} .lmm-multiselect-tag { position: relative; flex-grow: 1; }
+                        #${uniqueId} .lmm-multiselect-tag-display { 
+                            background-color: #333; color: #ccc; border: 1px solid #555; border-radius: 4px; padding: 4px; font-size: 10px;
+                            height: 23px; cursor: pointer; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+                        }
+                        #${uniqueId} .lmm-multiselect-arrow {
+                            position: absolute;
+                            right: 8px;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            transition: transform 0.2s ease-in-out;
+                            font-size: 10px;
+                            pointer-events: none;
+                        }
+                        #${uniqueId} .lmm-multiselect-arrow.open {
+                            transform: translateY(-50%) rotate(180deg);
+                        }
+                        #${uniqueId} .lmm-multiselect-tag-dropdown {
+                            display: none; position: absolute; top: 100%; left: 0; right: 0; background-color: #222;
+                            border: 1px solid #555; border-top: none; max-height: 200px; overflow-y: auto; z-index: 10;
+                        }
+                        #${uniqueId} .lmm-multiselect-tag-dropdown label {
+                            display: block; padding: 0px 0px; cursor: pointer; font-size: 12px; color: #ccc;
+                        }
+                        #${uniqueId} .lmm-multiselect-tag-dropdown label:hover { background-color: #444; }
+                        #${uniqueId} .lmm-tag-filter-mode-btn {
+                            padding: 4px 8px; background-color: #555; color: #fff; border: 1px solid #666;
+                            border-radius: 4px; cursor: pointer; flex-shrink: 0;
+                        }                        
                         #${uniqueId} .lmm-clear-tag-filter-button {
                             background: none;
                             display: none;
@@ -159,11 +188,18 @@ app.registerExtension({
                         </div>
                         <div class="lmm-controls" style="gap: 5px;">
                             <label>Filter by Tag:</label>
+                            <button class="lmm-tag-filter-mode-btn" title="Click to switch filter logic (OR/AND)">OR</button>
                             <div class="lmm-tag-filter-wrapper">
-                                <input type="text" class="lmm-tag-filter-input" placeholder="Enter tag...">
+                                <input type="text" class="lmm-tag-filter-input" placeholder="Enter tags, separated by commas...">
                                 <button class="lmm-clear-tag-filter-button" title="Clear Tag Filter">✖️</button>
                             </div>
-                            <select class="lmm-tag-filter-presets"></select>
+                            <div class="lmm-multiselect-tag">
+                                <div class="lmm-multiselect-tag-display">
+                                    Select Tags
+                                    <span class="lmm-multiselect-arrow">▼</span>
+                                </div>
+                                <div class="lmm-multiselect-tag-dropdown"></div>
+                            </div>
                             <label>Global:</label> <input type="checkbox" class="lmm-global-search">
                         </div>
                         <div class="lmm-controls lmm-tag-editor">
@@ -187,7 +223,10 @@ app.registerExtension({
                 const showVideosCheckbox = controls.querySelector(".lmm-show-videos");
                 const showAudioCheckbox = controls.querySelector(".lmm-show-audio");
                 const tagFilterInput = controls.querySelector(".lmm-tag-filter-input");
-                const tagFilterPresets = controls.querySelector(".lmm-tag-filter-presets");
+                const tagFilterModeBtn = controls.querySelector(".lmm-tag-filter-mode-btn");
+                const multiSelectTagContainer = controls.querySelector(".lmm-multiselect-tag");
+                const multiSelectTagDisplay = multiSelectTagContainer.querySelector(".lmm-multiselect-tag-display");
+                const multiSelectTagDropdown = multiSelectTagContainer.querySelector(".lmm-multiselect-tag-dropdown");
                 const globalSearchCheckbox = controls.querySelector(".lmm-global-search");
                 const tagEditor = controls.querySelector(".lmm-tag-editor");
                 const tagEditorInput = controls.querySelector(".lmm-tag-editor-input");
@@ -260,15 +299,21 @@ app.registerExtension({
                     try {
                         const response = await api.fetchApi("/local_image_gallery/get_all_tags");
                         const data = await response.json();
-                        tagFilterPresets.innerHTML = '<option value="">Select Tags</option>';
+                        multiSelectTagDropdown.innerHTML = '';
                         if (data.tags) {
                             data.tags.forEach(tag => {
-                                const option = new Option(tag, tag);
-                                tagFilterPresets.add(option);
+                                const label = document.createElement('label');
+                                const checkbox = document.createElement('input');
+                                checkbox.type = 'checkbox';
+                                checkbox.value = tag;
+                                checkbox.addEventListener('change', handleTagSelectionChange);
+                                label.appendChild(checkbox);
+                                label.appendChild(document.createTextNode(` ${tag}`));
+                                multiSelectTagDropdown.appendChild(label);
                             });
                         }
                     } catch(e) { console.error("Failed to load all tags:", e); }
-                }                
+                }              
 
                 function updateCardTagsUI(card) {
                     const tagListEl = card.querySelector('.lmm-tag-list');
@@ -474,12 +519,13 @@ app.registerExtension({
                     const showAudio = showAudioCheckbox.checked;
                     const filterTag = tagFilterInput.value;
                     const isGlobalSearch = globalSearchCheckbox.checked;
+                    const filterMode = tagFilterModeBtn.textContent;
 
                     if (!directory && !isGlobalSearch) { cardholder.innerHTML = "<p>Enter folder path and click 'Refresh'.</p>"; cardholder.style.opacity = 1; isLoading = false; return; }
 
                     const sortBy = controls.querySelector(".lmm-sort-by").value;
                     const sortOrder = controls.querySelector(".lmm-sort-order").value;
-                    let url = `/local_image_gallery/images?directory=${encodeURIComponent(directory)}&page=${page}&sort_by=${sortBy}&sort_order=${sortOrder}&show_videos=${showVideos}&show_audio=${showAudio}&filter_tag=${encodeURIComponent(filterTag)}&search_mode=${isGlobalSearch ? 'global' : 'local'}`;
+                    let url = `/local_image_gallery/images?directory=${encodeURIComponent(directory)}&page=${page}&sort_by=${sortBy}&sort_order=${sortOrder}&show_videos=${showVideos}&show_audio=${showAudio}&filter_tag=${encodeURIComponent(filterTag)}&search_mode=${isGlobalSearch ? 'global' : 'local'}&filter_mode=${filterMode}`;
 
                     if (selection.length > 0) {
                         selection.forEach(item => {
@@ -783,6 +829,13 @@ app.registerExtension({
                     setUiState(this.id, state);
                 };
 
+                const handleTagSelectionChange = () => {
+                    const selectedTags = Array.from(multiSelectTagDropdown.querySelectorAll('input:checked')).map(cb => cb.value);
+                    tagFilterInput.value = selectedTags.join(',');
+
+                    saveStateAndReload();
+                };
+
                 const saveStateAndReload = () => {
                     saveCurrentControlsState();
                     resetAndReload();
@@ -846,15 +899,32 @@ app.registerExtension({
                     }
                 });
 
-                tagFilterPresets.addEventListener('change', () => {
-                    if (tagFilterPresets.value) {
-                        tagFilterInput.value = tagFilterPresets.value;
-                        saveStateAndReload();
-                        tagFilterPresets.value = "";
+                const arrow = multiSelectTagContainer.querySelector('.lmm-multiselect-arrow');
+                multiSelectTagDisplay.addEventListener('click', () => {
+                    const isVisible = multiSelectTagDropdown.style.display === 'block';
+                    multiSelectTagDropdown.style.display = isVisible ? 'none' : 'block';
+                    arrow.classList.toggle('open', !isVisible);
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!multiSelectTagContainer.contains(e.target)) {
+                        multiSelectTagDropdown.style.display = 'none';
+                        arrow.classList.remove('open');
                     }
                 });
 
                 upButton.onclick = () => { if(parentDir){ pathInput.value = parentDir; globalSearchCheckbox.checked = false; tagFilterInput.value = ""; resetAndReload(); } };
+
+                tagFilterModeBtn.addEventListener('click', () => {
+                    if (tagFilterModeBtn.textContent === 'OR') {
+                        tagFilterModeBtn.textContent = 'AND';
+                        tagFilterModeBtn.style.backgroundColor = "#D97706";
+                    } else {
+                        tagFilterModeBtn.textContent = 'OR';
+                        tagFilterModeBtn.style.backgroundColor = "#555";
+                    }
+                    saveStateAndReload();
+                });
 
                 const updateShowSelectedButtonUI = () => {
                     if (showSelectedMode) {
@@ -881,6 +951,12 @@ app.registerExtension({
                 const clearTagFilterButton = controls.querySelector(".lmm-clear-tag-filter-button");
                 clearTagFilterButton.addEventListener("click", () => {
                     tagFilterInput.value = "";
+
+                    const checkboxes = multiSelectTagDropdown.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(cb => {
+                        cb.checked = false;
+                    });
+
                     saveStateAndReload();
                 });
 
@@ -940,7 +1016,7 @@ app.registerExtension({
 
                 this.onResize = function(size) {
                     const minHeight = 670;
-                    const minWidth = 510;
+                    const minWidth = 600;
                     if (size[1] < minHeight) size[1] = minHeight;
                     if (size[0] < minWidth) size[0] = minWidth;
                 };
