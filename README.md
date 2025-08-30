@@ -12,6 +12,10 @@
 
 ## 🇬🇧 English
 
+### Update Log (2025-08-30)
+* **Multi-Select Dropdown**: The previous tag filter has been upgraded to a full-featured multi-select dropdown menu, allowing you to combine multiple tags by checking them.
+* **AND/OR Logic Toggle**: A new AND/OR button lets you precisely control the filtering logic for multiple tags (matching all tags vs. matching any tag).
+
 ### Update Log (2025-08-27)
 * **Major Upgrade**: Implemented a comprehensive **Workflow Memory** system. The node now remembers all UI settings (path, selections, sorting, filters) and restores them on reload.
 * **Advanced Features**: Added **Multi-Select** with sequence numbers (`Ctrl+Click`), batch **Tag Editing**, and intelligent **Batch Processing** for images of different sizes.
@@ -80,6 +84,10 @@ The gallery features a fluid waterfall (masonry) layout, smooth transitions, and
 ---
 
 ## 🇨🇳 中文
+
+### 更新日志 (2025-08-27)
+* **多选下拉菜单**: 原有的标签筛选器已升级为功能完善的多选下拉菜单，允许您通过勾选来组合多个标签进行筛选。
+* **AND/OR 逻辑切换**: 新增了一个 AND/OR 切换按钮，让您可以精确控制多标签的筛选逻辑（是需要满足所有标签，还是满足任意一个）。
 
 ### 更新日志 (2025-08-27)
 * **重大升级**: 实现了完整的 **工作流记忆** 系统。节点现在可以记住所有UI设置（路径、选择项、排序、筛选）并在重载后恢复。
