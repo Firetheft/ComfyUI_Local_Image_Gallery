@@ -12,6 +12,10 @@
 
 ## 🇬🇧 English
 
+### Update Log (2025-08-31)
+* **New Node: Select Original Image**: In multi-image selection mode, this node can be connected to the gallery's “image_path” output interface to retrieve the original image by index. Multiple “Select Original Image” nodes can be used simultaneously.
+* **Compact Gallery UI**: A small CSS tweak was made to make the “Local Media Manager” node UI more compact.
+
 ### Update Log (2025-08-30)
 * **Multi-Select Dropdown**: The previous tag filter has been upgraded to a full-featured multi-select dropdown menu, allowing you to combine multiple tags by checking them.
 * **AND/OR Logic Toggle**: A new AND/OR button lets you precisely control the filtering logic for multiple tags (matching all tags vs. matching any tag).
@@ -85,7 +89,11 @@ The gallery features a fluid waterfall (masonry) layout, smooth transitions, and
 
 ## 🇨🇳 中文
 
-### 更新日志 (2025-08-27)
+### 更新日志 (2025-08-31)
+* **新增节点：Select Original Image**: 在图像多选状态下，可以使用这个节点与图库的“image_path”输出接口相连，选择对应序号获取原始图像，可使用多个“Select Original Image”节点。
+* **使图库UI更紧凑**: 修改了一小段CSS式样，使“Local Media Manager”节点UI变得紧凑起来。
+
+### 更新日志 (2025-08-30)
 * **多选下拉菜单**: 原有的标签筛选器已升级为功能完善的多选下拉菜单，允许您通过勾选来组合多个标签进行筛选。
 * **AND/OR 逻辑切换**: 新增了一个 AND/OR 切换按钮，让您可以精确控制多标签的筛选逻辑（是需要满足所有标签，还是满足任意一个）。
 

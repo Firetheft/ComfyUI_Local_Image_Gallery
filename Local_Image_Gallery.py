@@ -77,8 +77,8 @@ class LocalImageGalleryNode:
             "hidden": { "unique_id": "UNIQUE_ID" },
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING",)
-    RETURN_NAMES = ("image", "video_path", "audio_path", "info",)
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING", "STRING",)
+    RETURN_NAMES = ("image", "image_path", "video_path", "audio_path", "info",)
     FUNCTION = "get_selected_media"
     CATEGORY = "📜Asset Gallery/Local"
 
@@ -89,31 +89,38 @@ class LocalImageGalleryNode:
         image_paths = node_selections.get("image", [])
         video_paths = node_selections.get("video", [])
         audio_paths = node_selections.get("audio", [])
-
-        image_tensors = []
-        info_strings = []
+        
         final_image_tensor = torch.zeros(1, 1, 1, 3)
+        info_strings = []
+        valid_image_paths = []
 
         if image_paths:
             sizes = {}
-            valid_image_paths = []
+            batch_has_alpha = False
+            
             for media_path in image_paths:
                 if os.path.exists(media_path):
                     try:
                         with Image.open(media_path) as img:
                             sizes[img.size] = sizes.get(img.size, 0) + 1
                             valid_image_paths.append(media_path)
+                            if not batch_has_alpha and (img.mode == 'RGBA' or (img.mode == 'P' and 'transparency' in img.info)):
+                                batch_has_alpha = True
                     except Exception as e:
                         print(f"LMM: Error reading size for {media_path}: {e}")
 
             if valid_image_paths:
                 dominant_size = max(sizes.items(), key=lambda x: x[1])[0]
                 target_width, target_height = dominant_size
+                
+                target_mode = "RGBA" if batch_has_alpha else "RGB"
+                image_tensors = []
 
                 for media_path in valid_image_paths:
                     try:
                         with Image.open(media_path) as img:
-                            img_out = img.convert("RGB")
+                            img_out = img.convert(target_mode)
+                            
                             if img.size[0] != target_width or img.size[1] != target_height:
                                 img_array_pre = np.array(img_out).astype(np.float32) / 255.0
                                 tensor_pre = torch.from_numpy(img_array_pre)[None,].permute(0, 3, 1, 2)
@@ -121,6 +128,7 @@ class LocalImageGalleryNode:
                                 img_array = tensor_post.permute(0, 2, 3, 1).cpu().numpy().squeeze(0)
                             else:
                                 img_array = np.array(img_out).astype(np.float32) / 255.0
+                            
                             image_tensor = torch.from_numpy(img_array)[None,]
                             image_tensors.append(image_tensor)
 
@@ -154,8 +162,54 @@ class LocalImageGalleryNode:
 
         video_path_out = video_paths[0] if video_paths and os.path.exists(os.path.normpath(video_paths[0])) else ""
         audio_path_out = audio_paths[0] if audio_paths and os.path.exists(os.path.normpath(audio_paths[0])) else ""
+        image_paths_json = json.dumps(valid_image_paths)
 
-        return (final_image_tensor, video_path_out, audio_path_out, info_string_out,)
+        return (final_image_tensor, image_paths_json, video_path_out, audio_path_out, info_string_out,)
+
+class SelectOriginalImageNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_path": ("STRING", {"forceInput": True}),
+                "index": ("INT", {"default": 0, "min": 0, "step": 1}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "get_original_image"
+    CATEGORY = "📜Asset Gallery/Local"
+
+    def get_original_image(self, image_path, index):
+        try:
+            image_paths = json.loads(image_path)
+        except:
+            print("LMM Selector: Invalid JSON passed to image_path.")
+            return (torch.zeros(1, 1, 1, 3),)
+
+        if not image_paths or index >= len(image_paths):
+            print(f"LMM Selector: Index {index} is out of bounds for the selected image list (length {len(image_paths)}).")
+            return (torch.zeros(1, 1, 1, 3),)
+
+        selected_path = image_paths[index]
+
+        if not os.path.exists(selected_path):
+            print(f"LMM Selector: Image path does not exist: {selected_path}")
+            return (torch.zeros(1, 1, 1, 3),)
+
+        try:
+            with Image.open(selected_path) as img:
+                if img.mode == 'RGBA' or (img.mode == 'P' and 'transparency' in img.info):
+                    img_out = img.convert("RGBA")
+                else:
+                    img_out = img.convert("RGB")
+                
+                img_array = np.array(img_out).astype(np.float32) / 255.0
+                image_tensor = torch.from_numpy(img_array)[None,]
+                return (image_tensor,)
+        except Exception as e:
+            print(f"LMM Selector: Error loading original image {selected_path}: {e}")
+            return (torch.zeros(1, 1, 1, 3),)
 
 prompt_server = server.PromptServer.instance
 
@@ -455,5 +509,11 @@ async def view_image(request):
     try: return web.FileResponse(filepath)
     except: return web.Response(status=500)
 
-NODE_CLASS_MAPPINGS = {"LocalImageGalleryNode": LocalImageGalleryNode}
-NODE_DISPLAY_NAME_MAPPINGS = {"LocalImageGalleryNode": "Local Media Manager"}
+NODE_CLASS_MAPPINGS = {
+    "LocalImageGalleryNode": LocalImageGalleryNode,
+    "SelectOriginalImageNode": SelectOriginalImageNode,
+}
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "LocalImageGalleryNode": "Local Media Manager",
+    "SelectOriginalImageNode": "Select Original Image",
+}

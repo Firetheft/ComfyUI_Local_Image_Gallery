@@ -71,7 +71,8 @@ app.registerExtension({
                 galleryContainer.innerHTML = `
                     <style>
                         #${uniqueId} .lmm-container-wrapper { width: 100%; font-family: sans-serif; color: var(--node-text-color); box-sizing: border-box; display: flex; flex-direction: column; height: 100%; }
-                        #${uniqueId} .lmm-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; flex-shrink: 0; }
+                        #${uniqueId} .lmm-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; flex-shrink: 0; padding-right: 85px; }
+                        #${uniqueId} .lmm-container-wrapper > .lmm-controls:first-child { margin-top: -107px; }
                         #${uniqueId} .lmm-controls label { margin-left: 0px; font-size: 12px; white-space: nowrap; }
                         #${uniqueId} .lmm-controls input, #${uniqueId} .lmm-controls select, #${uniqueId} .lmm-controls button { background-color: #333; color: #ccc; border: 1px solid #555; border-radius: 4px; padding: 4px; font-size: 12px; }
                         #${uniqueId} .lmm-controls input[type=text] { flex-grow: 1; min-width: 150px;}
@@ -1015,8 +1016,8 @@ app.registerExtension({
                 loadAllTags();
 
                 this.onResize = function(size) {
-                    const minHeight = 670;
-                    const minWidth = 600;
+                    const minHeight = 470;
+                    const minWidth = 700;
                     if (size[1] < minHeight) size[1] = minHeight;
                     if (size[0] < minWidth) size[0] = minWidth;
                 };
