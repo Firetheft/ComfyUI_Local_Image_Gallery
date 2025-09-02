@@ -77,14 +77,19 @@ class LocalImageGalleryNode:
             "hidden": { "unique_id": "UNIQUE_ID" },
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "STRING", "STRING",)
+    RETURN_TYPES = ("IMAGE", "LMM_IMAGE_PATH", "STRING", "STRING", "STRING",)
     RETURN_NAMES = ("image", "image_path", "video_path", "audio_path", "info",)
     FUNCTION = "get_selected_media"
     CATEGORY = "📜Asset Gallery/Local"
 
     def get_selected_media(self, unique_id):
         selections = load_selections()
-        node_selections = selections.get(str(unique_id), {})
+        
+        node_selections = {}
+        for key, value in selections.items():
+            if key.endswith(f"_{unique_id}"):
+                node_selections = value
+                break
 
         image_paths = node_selections.get("image", [])
         video_paths = node_selections.get("video", [])
@@ -171,7 +176,7 @@ class SelectOriginalImageNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image_path": ("STRING", {"forceInput": True}),
+                "image_path": ("LMM_IMAGE_PATH", {"forceInput": True}),
                 "index": ("INT", {"default": 0, "min": 0, "step": 1}),
             },
         }
@@ -218,12 +223,14 @@ async def set_node_selection(request):
     try:
         data = await request.json()
         node_id = str(data.get("node_id"))
+        gallery_id = str(data.get("gallery_id"))
         selections_list = data.get("selections", [])
 
-        if not node_id:
-            return web.json_response({"status": "error", "message": "Missing node_id."}, status=400)
+        if not node_id or not gallery_id:
+            return web.json_response({"status": "error", "message": "Missing node_id or gallery_id."}, status=400)
 
         selections = load_selections()
+        node_key = f"{gallery_id}_{node_id}"
 
         organized_selections = {"image": [], "video": [], "audio": []}
         for item in selections_list:
@@ -232,7 +239,7 @@ async def set_node_selection(request):
             if media_type in organized_selections and path:
                 organized_selections[media_type].append(path)
 
-        selections[node_id] = organized_selections
+        selections[node_key] = organized_selections
         save_selections(selections)
 
         return web.json_response({"status": "ok"})
@@ -401,14 +408,16 @@ async def set_ui_state(request):
     try:
         data = await request.json()
         node_id = str(data.get("node_id"))
+        gallery_id = str(data.get("gallery_id"))
         state = data.get("state", {})
-        if not node_id:
-            return web.json_response({"status": "error", "message": "node_id is required"}, status=400)
+        if not node_id or not gallery_id:
+            return web.json_response({"status": "error", "message": "node_id or gallery_id is required"}, status=400)
 
+        node_key = f"{gallery_id}_{node_id}"
         ui_states = load_ui_state()
-        if node_id not in ui_states:
-            ui_states[node_id] = {}
-        ui_states[node_id].update(state)
+        if node_key not in ui_states:
+            ui_states[node_key] = {}
+        ui_states[node_key].update(state)
         save_ui_state(ui_states)
         return web.json_response({"status": "ok"})
     except Exception as e:
@@ -457,9 +466,11 @@ async def get_selected_items(request):
 async def get_ui_state(request):
     try:
         node_id = request.query.get('node_id')
-        if not node_id:
-            return web.json_response({"error": "node_id is required"}, status=400)
+        gallery_id = request.query.get('gallery_id')
+        if not node_id or not gallery_id:
+            return web.json_response({"error": "node_id or gallery_id is required"}, status=400)
 
+        node_key = f"{gallery_id}_{node_id}"
         ui_states = load_ui_state()
 
         default_state = {
@@ -473,7 +484,7 @@ async def get_ui_state(request):
             "global_search": False
         }
 
-        node_saved_state = ui_states.get(str(node_id), {})
+        node_saved_state = ui_states.get(node_key, {})
 
         final_state = {**default_state, **node_saved_state}
 

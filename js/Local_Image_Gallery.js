@@ -60,6 +60,11 @@ app.registerExtension({
             nodeType.prototype.onNodeCreated = function () {
                 const r = onNodeCreated?.apply(this, arguments);
 
+                if (!this.properties || !this.properties.gallery_unique_id) {
+                    if (!this.properties) { this.properties = {}; }
+                    this.properties.gallery_unique_id = "gallery-" + Math.random().toString(36).substring(2, 11);
+                }
+
                 const galleryContainer = document.createElement("div");
                 const uniqueId = `lmm-gallery-${Math.random().toString(36).substring(2, 9)}`;
                 galleryContainer.id = uniqueId;
@@ -267,11 +272,12 @@ app.registerExtension({
                 new ResizeObserver(debouncedLayout).observe(cardholder);
                 
                 async function setUiState(nodeId, state) {
+                    const galleryId = this.properties.gallery_unique_id;
                     try {
                         await api.fetchApi("/local_image_gallery/set_ui_state", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ node_id: nodeId, state: state }),
+                            body: JSON.stringify({ node_id: nodeId, gallery_id: galleryId, state: state }),
                         });
                     } catch(e) { console.error("LocalImageGallery: Failed to set UI state", e); }
                 }
@@ -547,7 +553,7 @@ app.registerExtension({
                         if (!api_data.is_global_search) {
                             pathInput.value = api_data.current_directory;
                             lastKnownPath = api_data.current_directory;
-                            setUiState(this.id, { last_path: api_data.current_directory });
+                            setUiState.call(this, this.id, { last_path: api_data.current_directory });
                         }
                         pathInput.disabled = api_data.is_global_search;
                         upButton.disabled = api_data.is_global_search || !parentDir;
@@ -712,13 +718,14 @@ app.registerExtension({
 
                         renderSelectionBadges();
 
-                        setUiState(this.id, { selection: selection });
+                        setUiState.call(this, this.id, { selection: selection });
+                        const galleryId = this.properties.gallery_unique_id;
 
                         try { 
                             await api.fetchApi("/local_image_gallery/set_node_selection", { 
                                 method: "POST", 
                                 headers: { "Content-Type": "application/json" }, 
-                                body: JSON.stringify({ node_id: this.id, selections: selection }), 
+                                body: JSON.stringify({ node_id: this.id, gallery_id: galleryId, selections: selection }), 
                             });
                         } catch(e) { console.error("An error occurred while sending data to the backend:", e); }
                     }
@@ -827,7 +834,7 @@ app.registerExtension({
                         global_search: globalSearchCheckbox.checked,
                         show_selected_mode: showSelectedMode,
                     };
-                    setUiState(this.id, state);
+                    setUiState.call(this, this.id, state);
                 };
 
                 const handleTagSelectionChange = () => {
@@ -842,7 +849,7 @@ app.registerExtension({
                     resetAndReload();
                 };
 
-                const resetAndReload = () => { fetchImages(1, false); };
+                const resetAndReload = () => { fetchImages.call(this, 1, false); };
                 controls.querySelector('.lmm-refresh-button').onclick = saveStateAndReload;
                 tagFilterInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveStateAndReload(); });
                 tagEditorInput.addEventListener('keydown', async (e) => {
@@ -947,7 +954,7 @@ app.registerExtension({
                     saveStateAndReload();
                 });
 
-                cardholder.onscroll = () => { if (cardholder.scrollTop + cardholder.clientHeight >= cardholder.scrollHeight - 300 && !isLoading && currentPage < totalPages) { fetchImages(currentPage + 1, true); } };
+                cardholder.onscroll = () => { if (cardholder.scrollTop + cardholder.clientHeight >= cardholder.scrollHeight - 300 && !isLoading && currentPage < totalPages) { fetchImages.call(this, currentPage + 1, true); } };
 
                 const clearTagFilterButton = controls.querySelector(".lmm-clear-tag-filter-button");
                 clearTagFilterButton.addEventListener("click", () => {
@@ -973,7 +980,8 @@ app.registerExtension({
 
                 const initializeNode = async () => {
                     try {
-                        const response = await api.fetchApi(`/local_image_gallery/get_ui_state?node_id=${this.id}`);
+                        const galleryId = this.properties.gallery_unique_id;
+                        const response = await api.fetchApi(`/local_image_gallery/get_ui_state?node_id=${this.id}&gallery_id=${galleryId}`);
                         const state = await response.json();
                         if (state) {
                             controls.querySelector(".lmm-sort-by").value = state.sort_by;
@@ -989,10 +997,15 @@ app.registerExtension({
                             if (state.last_path) {
                                 pathInput.value = state.last_path;
                                 lastKnownPath = state.last_path;
-                                resetAndReload();
                             }
+
+                            resetAndReload();
                         }
-                    } catch (e) { console.error("LocalImageGallery: Unable to load the UI state:", e); }
+                    } catch (e) { 
+                        console.error("LocalImageGallery: Unable to load the UI state:", e); 
+
+                        resetAndReload();
+                    }
                 };
                 
                 const loadSavedPaths = async () => {
@@ -1011,7 +1024,7 @@ app.registerExtension({
                     } catch (e) { console.error("Unable to load saved paths:", e); }
                 };
 
-                setTimeout(() => initializeNode(), 1);
+                setTimeout(() => initializeNode.call(this), 1);
                 loadSavedPaths();
                 loadAllTags();
 

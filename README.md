@@ -12,6 +12,9 @@
 
 ## 🇬🇧 English
 
+### Changelog (2025-09-02)
+* **Optimized Unique ID**: Each gallery node now automatically generates and stores its own unique ID, which is synchronized with the workflow. This completely avoids conflicts between different workflows or nodes.
+
 ### Update Log (2025-08-31)
 * **New Node: Select Original Image**: In multi-image selection mode, this node can be connected to the gallery's “image_path” output interface to retrieve the original image by index. Multiple “Select Original Image” nodes can be used simultaneously.
 * **Compact Gallery UI**: A small CSS tweak was made to make the “Local Media Manager” node UI more compact.
@@ -88,6 +91,9 @@ The gallery features a fluid waterfall (masonry) layout, smooth transitions, and
 ---
 
 ## 🇨🇳 中文
+
+### 更新日志 (2025-09-02)
+* **优化唯一 ID**：每个图库节点现在都会自动生成并保存其专属的唯一 ID，并与工作流程同步。这完全避免了不同工作流程或节点之间的冲突。
 
 ### 更新日志 (2025-08-31)
 * **新增节点：Select Original Image**: 在图像多选状态下，可以使用这个节点与图库的“image_path”输出接口相连，选择对应序号获取原始图像，可使用多个“Select Original Image”节点。

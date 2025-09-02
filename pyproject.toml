@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI_Local_Image_Gallery"
 description = "The Ultimate Local File Manager for Images, Videos, and Audio in ComfyUI"
-version = "1.0.3"
+version = "1.0.4"
 license = {file = "LICENSE"} 
 # classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
