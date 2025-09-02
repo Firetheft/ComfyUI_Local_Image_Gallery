@@ -65,6 +65,27 @@ app.registerExtension({
                     this.properties.gallery_unique_id = "gallery-" + Math.random().toString(36).substring(2, 11);
                 }
 
+                const node_instance = this;
+
+                const galleryIdWidget = this.addWidget(
+                    "text",
+                    "gallery_unique_id_widget",
+                    this.properties.gallery_unique_id,
+                    () => {},
+                    {}
+                );
+
+                galleryIdWidget.serializeValue = () => {
+                    return node_instance.properties.gallery_unique_id;
+                };
+
+                galleryIdWidget.draw = function(ctx, node, widget_width, y, widget_height) {
+                };
+
+                galleryIdWidget.computeSize = function(width) {
+                    return [0, -4];
+                }
+
                 const galleryContainer = document.createElement("div");
                 const uniqueId = `lmm-gallery-${Math.random().toString(36).substring(2, 9)}`;
                 galleryContainer.id = uniqueId;

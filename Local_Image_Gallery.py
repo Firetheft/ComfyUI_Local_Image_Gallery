@@ -74,7 +74,10 @@ class LocalImageGalleryNode:
     def INPUT_TYPES(cls):
         return {
             "required": {},
-            "hidden": { "unique_id": "UNIQUE_ID" },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+                "gallery_unique_id_widget": ("STRING", {"default": "", "multiline": False}),
+            },
         }
 
     RETURN_TYPES = ("IMAGE", "LMM_IMAGE_PATH", "STRING", "STRING", "STRING",)
@@ -82,14 +85,16 @@ class LocalImageGalleryNode:
     FUNCTION = "get_selected_media"
     CATEGORY = "📜Asset Gallery/Local"
 
-    def get_selected_media(self, unique_id):
-        selections = load_selections()
+    def get_selected_media(self, unique_id, gallery_unique_id_widget=""):
+        unique_id_str = str(unique_id)
+        gallery_unique_id = gallery_unique_id_widget 
         
+        selections = load_selections()
         node_selections = {}
-        for key, value in selections.items():
-            if key.endswith(f"_{unique_id}"):
-                node_selections = value
-                break
+
+        if gallery_unique_id and gallery_unique_id != "none":
+            node_key = f"{gallery_unique_id}_{unique_id_str}"
+            node_selections = selections.get(node_key, {})
 
         image_paths = node_selections.get("image", [])
         video_paths = node_selections.get("video", [])
