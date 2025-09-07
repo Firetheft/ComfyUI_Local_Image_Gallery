@@ -74,17 +74,26 @@ app.registerExtension({
                     () => {},
                     {}
                 );
-
                 galleryIdWidget.serializeValue = () => {
                     return node_instance.properties.gallery_unique_id;
                 };
-
-                galleryIdWidget.draw = function(ctx, node, widget_width, y, widget_height) {
-                };
-
+                galleryIdWidget.draw = function(ctx, node, widget_width, y, widget_height) {};
                 galleryIdWidget.computeSize = function(width) {
                     return [0, -4];
-                }
+                };
+
+                const selectionWidget = this.addWidget(
+                    "text",
+                    "selection",
+                    this.properties.selection || "[]",
+                    () => {},
+                    { multiline: true }
+                );
+                selectionWidget.serializeValue = () => {
+                    return node_instance.properties["selection"] || "[]";
+                };
+                selectionWidget.draw = function(ctx, node, widget_width, y, widget_height) {};
+                selectionWidget.computeSize = function(width) { return [0, -4]; };
 
                 const galleryContainer = document.createElement("div");
                 const uniqueId = `lmm-gallery-${Math.random().toString(36).substring(2, 9)}`;
@@ -739,16 +748,17 @@ app.registerExtension({
 
                         renderSelectionBadges();
 
-                        setUiState.call(this, this.id, { selection: selection });
-                        const galleryId = this.properties.gallery_unique_id;
+                        const selectionJson = JSON.stringify(selection);
 
-                        try { 
-                            await api.fetchApi("/local_image_gallery/set_node_selection", { 
-                                method: "POST", 
-                                headers: { "Content-Type": "application/json" }, 
-                                body: JSON.stringify({ node_id: this.id, gallery_id: galleryId, selections: selection }), 
-                            });
-                        } catch(e) { console.error("An error occurred while sending data to the backend:", e); }
+                        this.setProperty("selection", selectionJson);
+
+                        const widget = this.widgets.find(w => w.name === "selection");
+                        if (widget) {
+                            widget.value = selectionJson;
+                        }
+
+                        setUiState.call(this, this.id, { selection: selection });
+
                     }
                 });
 
@@ -1014,6 +1024,15 @@ app.registerExtension({
                             showSelectedMode = state.show_selected_mode || false;
 
                             selection = state.selection || [];
+
+                            const selectionJson = JSON.stringify(selection);
+
+                            this.setProperty("selection", selectionJson);
+
+                            const widget = this.widgets.find(w => w.name === "selection");
+                            if (widget) {
+                                widget.value = selectionJson;
+                            }
 
                             if (state.last_path) {
                                 pathInput.value = state.last_path;

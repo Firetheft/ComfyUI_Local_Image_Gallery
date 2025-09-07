@@ -12,6 +12,9 @@
 
 ## 🇬🇧 English
 
+### Changelog (2025-09-07)
+* **Critical Bug Fix**: Fixed a core issue where selecting a new media file while the prompt queue was running could cause the workflow to process the wrong item. The selection is now correctly "locked in" for a task when you queue the prompt, ensuring accurate and predictable results.
+
 ### Changelog (2025-09-02)
 * **Optimized Unique ID**: Each gallery node now automatically generates and stores its own unique ID, which is synchronized with the workflow. This completely avoids conflicts between different workflows or nodes.
 
@@ -91,6 +94,9 @@ The gallery features a fluid waterfall (masonry) layout, smooth transitions, and
 ---
 
 ## 🇨🇳 中文
+
+### 更新日志 (2025-09-07)
+* **重大BUG修复**：修复了一个核心问题，即在任务队列正在处理时选择新的媒体文件，会导致工作流处理错误的选项。现在，当您点击“生成”时，所选的媒体会被正确地“锁定”到该任务中，确保了结果的准确性和可预测性。
 
 ### 更新日志 (2025-09-02)
 * **优化唯一 ID**：每个图库节点现在都会自动生成并保存其专属的唯一 ID，并与工作流程同步。这完全避免了不同工作流程或节点之间的冲突。

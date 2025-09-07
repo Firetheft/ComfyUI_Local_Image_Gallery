@@ -10,7 +10,6 @@ import io
 from comfy.utils import common_upscale
 
 NODE_DIR = os.path.dirname(os.path.abspath(__file__))
-SELECTIONS_FILE = os.path.join(NODE_DIR, "selections.json")
 CONFIG_FILE = os.path.join(NODE_DIR, "config.json")
 METADATA_FILE = os.path.join(NODE_DIR, "metadata.json")
 UI_STATE_FILE = os.path.join(NODE_DIR, "lig_ui_state.json")
@@ -41,17 +40,6 @@ def save_metadata(data):
         with open(METADATA_FILE, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4, ensure_ascii=False)
     except Exception as e: print(f"LocalImageGallery: Error saving metadata: {e}")
 
-def load_selections():
-    if not os.path.exists(SELECTIONS_FILE): return {}
-    try:
-        with open(SELECTIONS_FILE, 'r', encoding='utf-8') as f: return json.load(f)
-    except: return {}
-
-def save_selections(data):
-    try:
-        with open(SELECTIONS_FILE, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4, ensure_ascii=False)
-    except Exception as e: print(f"LMM: Error saving selections: {e}")
-
 def load_ui_state():
     if not os.path.exists(UI_STATE_FILE): return {}
     try:
@@ -65,10 +53,8 @@ def save_ui_state(data):
 
 class LocalImageGalleryNode:
     @classmethod
-    def IS_CHANGED(cls, **kwargs):
-        if os.path.exists(SELECTIONS_FILE):
-            return os.path.getmtime(SELECTIONS_FILE)
-        return float("inf")
+    def IS_CHANGED(cls, selection, **kwargs):
+        return selection
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -76,6 +62,7 @@ class LocalImageGalleryNode:
             "required": {},
             "hidden": {
                 "unique_id": "UNIQUE_ID",
+                "selection": ("STRING", {"default": "[]", "multiline": True, "forceInput": True}),
                 "gallery_unique_id_widget": ("STRING", {"default": "", "multiline": False}),
             },
         }
@@ -85,20 +72,22 @@ class LocalImageGalleryNode:
     FUNCTION = "get_selected_media"
     CATEGORY = "📜Asset Gallery/Local"
 
-    def get_selected_media(self, unique_id, gallery_unique_id_widget=""):
-        unique_id_str = str(unique_id)
-        gallery_unique_id = gallery_unique_id_widget 
-        
-        selections = load_selections()
-        node_selections = {}
+    def get_selected_media(self, unique_id, gallery_unique_id_widget="", selection="[]"):
+        try:
+            selections_list = json.loads(selection)
+        except:
+            selections_list = []
 
-        if gallery_unique_id and gallery_unique_id != "none":
-            node_key = f"{gallery_unique_id}_{unique_id_str}"
-            node_selections = selections.get(node_key, {})
+        organized_selections = {"image": [], "video": [], "audio": []}
+        for item in selections_list:
+            media_type = item.get("type")
+            path = item.get("path")
+            if media_type in organized_selections and path:
+                organized_selections[media_type].append(path)
 
-        image_paths = node_selections.get("image", [])
-        video_paths = node_selections.get("video", [])
-        audio_paths = node_selections.get("audio", [])
+        image_paths = organized_selections.get("image", [])
+        video_paths = organized_selections.get("video", [])
+        audio_paths = organized_selections.get("audio", [])
         
         final_image_tensor = torch.zeros(1, 1, 1, 3)
         info_strings = []
@@ -222,34 +211,6 @@ class SelectOriginalImageNode:
             return (torch.zeros(1, 1, 1, 3),)
 
 prompt_server = server.PromptServer.instance
-
-@prompt_server.routes.post("/local_image_gallery/set_node_selection")
-async def set_node_selection(request):
-    try:
-        data = await request.json()
-        node_id = str(data.get("node_id"))
-        gallery_id = str(data.get("gallery_id"))
-        selections_list = data.get("selections", [])
-
-        if not node_id or not gallery_id:
-            return web.json_response({"status": "error", "message": "Missing node_id or gallery_id."}, status=400)
-
-        selections = load_selections()
-        node_key = f"{gallery_id}_{node_id}"
-
-        organized_selections = {"image": [], "video": [], "audio": []}
-        for item in selections_list:
-            media_type = item.get("type")
-            path = item.get("path")
-            if media_type in organized_selections and path:
-                organized_selections[media_type].append(path)
-
-        selections[node_key] = organized_selections
-        save_selections(selections)
-
-        return web.json_response({"status": "ok"})
-    except Exception as e:
-        return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 @prompt_server.routes.post("/local_image_gallery/update_metadata")
 async def update_metadata(request):
