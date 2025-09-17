@@ -1090,46 +1090,52 @@ async def move_files(request):
         if not isinstance(source_paths, list) or not destination_dir:
             return web.json_response({"status": "error", "message": "Invalid data format."}, status=400)
 
-        if not os.path.isabs(destination_dir) or not os.path.isdir(destination_dir):
+        normalized_destination_dir = os.path.normpath(destination_dir)
+
+        if not os.path.isabs(normalized_destination_dir) or not os.path.isdir(normalized_destination_dir):
             return web.json_response({"status": "error", "message": "Invalid or unsafe destination directory."}, status=400)
 
         metadata = load_metadata()
         metadata_changed = False
         errors = []
 
-        for source_path in source_paths:
-            if not source_path or not os.path.isabs(source_path) or ".." in source_path or not os.path.isfile(source_path):
-                continue
-
-            source_dir = os.path.dirname(source_path)
-            if os.path.normpath(source_dir) == os.path.normpath(destination_dir):
-                continue
-
-            filename = os.path.basename(source_path)
-            destination_path = os.path.join(destination_dir, filename)
-
-            counter = 1
-            file_base, file_ext = os.path.splitext(filename)
-            while os.path.exists(destination_path):
-                new_filename = f"{file_base} ({counter}){file_ext}"
-                destination_path = os.path.join(destination_dir, new_filename)
-                counter += 1
-
+        for original_source_path in source_paths:
             try:
-                ext = os.path.splitext(source_path)[1].lower()
-                is_video = ext in SUPPORTED_VIDEO_EXTENSIONS
-                old_cache_path = get_thumbnail_cache_path(source_path, is_video)
-                if os.path.exists(old_cache_path):
-                    new_cache_path = get_thumbnail_cache_path(destination_path, is_video)
-                    os.renames(old_cache_path, new_cache_path)
+                normalized_source_path = os.path.normpath(original_source_path)
 
-                shutil.move(source_path, destination_path) 
-                if source_path in metadata:
-                    metadata[destination_path] = metadata[source_path]
-                    del metadata[source_path]
+                if not normalized_source_path or not os.path.isabs(normalized_source_path) or not os.path.isfile(normalized_source_path):
+                    continue
+
+                source_dir = os.path.dirname(normalized_source_path)
+                if source_dir == normalized_destination_dir:
+                    continue
+
+                filename = os.path.basename(normalized_source_path)
+                final_destination_path = os.path.join(normalized_destination_dir, filename)
+
+                counter = 1
+                file_base, file_ext = os.path.splitext(filename)
+                while os.path.exists(final_destination_path):
+                    new_filename = f"{file_base} ({counter}){file_ext}"
+                    final_destination_path = os.path.join(normalized_destination_dir, new_filename)
+                    counter += 1
+
+                ext = os.path.splitext(normalized_source_path)[1].lower()
+                is_video = ext in SUPPORTED_VIDEO_EXTENSIONS
+                old_cache_path = get_thumbnail_cache_path(normalized_source_path, is_video)
+                if os.path.exists(old_cache_path):
+                    os.remove(old_cache_path)
+
+                shutil.move(normalized_source_path, final_destination_path)
+
+                if original_source_path in metadata:
+                    metadata[final_destination_path] = metadata[original_source_path]
+                    del metadata[original_source_path]
                     metadata_changed = True
+
             except Exception as e:
-                error_message = f"Could not move '{filename}': {e}"
+                filename_for_error = os.path.basename(original_source_path)
+                error_message = f"Could not move '{filename_for_error}': {e}"
                 print(f"LMM: {error_message}")
                 errors.append(error_message)
 
