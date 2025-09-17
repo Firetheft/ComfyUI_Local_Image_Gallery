@@ -12,6 +12,22 @@
 
 ## 🇬🇧 English
 
+### Changelog (2025-09-17)
+* **Full File Management**: Integrated complete file management capabilities. You can now **Move**, **Delete** (safely to trash), and **Rename** files directly from the UI.
+* **Major UI/UX Upgrade**:
+    * Replaced the simple path text field with an interactive **Breadcrumb Navigation Bar** for intuitive and fast directory traversal.
+    * Added **Batch Action** buttons (`All`, `Move`, `Delete`) to efficiently manage multiple selected files at once.
+    * The "Edit Tags" panel now reveals a **Rename** field when a single file is selected for editing.
+* **Huge Performance Boost**:
+    * Implemented a high-performance **Virtualized Scrolling Gallery**. This dramatically improves performance and reduces memory usage, allowing smooth browsing of folders containing thousands of files.
+    * Upgraded the backend with a **Directory Cache** and a robust **Thumbnail Caching System** (including support for video thumbnails) to disk, making subsequent loads significantly faster.
+* **Advanced Media Processing Nodes**: Introduced a suite of powerful downstream nodes to precisely control and use your selected media:
+    * **Select Original Image**: Selects a specific image from a multi-selection, resizes it with various aspect ratio options, and extracts its embedded prompts.
+    * **Select Original Video**: Extracts frames from a selected video with fine-grained controls (frame rate, count, skipping), resizes them, and separates the audio track.
+    * **Select Original Audio**: Isolates a specific segment from a selected audio file based on start time and duration.
+* **One-Click Workflow Loading**:
+    * Now you can load ComfyUI workflows directly from images **and videos** that contain embedded metadata, simply by clicking the new "Workflow" badge.
+
 ### Changelog (2025-09-07)
 * **Critical Bug Fix**: Fixed a core issue where selecting a new media file while the prompt queue was running could cause the workflow to process the wrong item. The selection is now correctly "locked in" for a task when you queue the prompt, ensuring accurate and predictable results.
 
@@ -29,71 +45,140 @@
 ### Update Log (2025-08-27)
 * **Major Upgrade**: Implemented a comprehensive **Workflow Memory** system. The node now remembers all UI settings (path, selections, sorting, filters) and restores them on reload.
 * **Advanced Features**: Added **Multi-Select** with sequence numbers (`Ctrl+Click`), batch **Tag Editing**, and intelligent **Batch Processing** for images of different sizes.
-
 ---
 
 ### Overview
 
-**ComfyUI Local Media Manager** has evolved into a powerful, feature-rich custom node that integrates a seamless local file management system directly into your ComfyUI workflow. This single, unified node allows you to browse, manage, and select local images, videos, and audio files, and instantly import them or their metadata into your projects. It eliminates the need to constantly switch to your OS file explorer, dramatically speeding up your creative and organizational process.
+**ComfyUI Local Media Manager** is a powerful, all-in-one custom node that brings a complete local file management system directly into your ComfyUI workflow. This single, unified node allows you to browse, manage, rate, tag, and select local images, videos, and audio files, then instantly use them or their metadata in your projects. It eliminates the need to constantly switch to your OS file explorer, dramatically speeding up your creative and organizational process.
 
-The gallery features a fluid waterfall (masonry) layout, smooth transitions, and an advanced lightbox viewer, ensuring a beautiful and efficient browsing and management experience.
+The gallery features a high-performance virtualized scrolling layout, a robust caching system, and an advanced lightbox viewer, ensuring a beautiful and efficient management experience even with massive media libraries.
 
 ### Features
 
 -   **All-in-One Media Hub**: Browse images, videos, and audio files within a single, powerful node.
+-   **Complete File Management**:
+    -   **Move**: Move selected files to another directory. Supports path presets for quick access.
+    -   **Delete**: Safely sends selected files to the system's Recycle Bin or Trash.
+    -   **Rename**: Rename individual files directly within the UI.
 -   **Full Metadata Management**:
-    -   **Star Rating**: Assign a rating from 1 to 5 stars to any media file. Click a star to rate, click it again to unrate.
-    -   **Tagging System**: Add or remove custom tags for any media file. Selections are saved instantly.
+    -   **Star Rating**: Assign a rating from 1 to 5 stars. Click a star to rate, click it again to unrate.
+    -   **Tagging System**: Add or remove custom tags for individual or multiple files at once.
 -   **Advanced Navigation & Search**:
-    -   Full folder/directory navigation, including an "Up" button.
-    -   **Global Tag Search**: Search for files with a specific tag across **all your drives and folders** by checking the "全局" (Global) box.
-    -   Persistent Memory: The node remembers the last directory you visited.
--   **Powerful Filtering & Sorting**:
-    -   Toggle visibility for videos and audio files with dedicated checkboxes.
-    -   Sort all media by **Name**, modification **Date**, or **Rating**.
-    -   Filter the current view by a specific tag. Clicking a tag on a card automatically filters by that tag in global search mode.
+    -   Interactive **Breadcrumb Navigation Bar** for easy directory traversal.
+    -   **Path Presets** to save and quickly jump to your favorite folders.
+    -   **Global Tag Search**: Search for files with specific tags across **all your drives and folders**.
+    -   **Multi-Tag Filtering**: Combine multiple tags with **AND/OR** logic for precise searching.
 -   **High-Performance Gallery**:
-    -   A fluid, responsive waterfall layout that intelligently adapts to the node's size.
-    -   **Performance-optimized thumbnails** for images ensure smooth scrolling.
-    -   Smooth fade-in/fade-out transitions when changing directories.
+    -   A **virtualized scrolling** waterfall layout that handles thousands of files with ease and low memory usage.
+    -   Backend **caching** for directories and thumbnails (including videos) for near-instant loading.
 -   **Advanced Lightbox Viewer**:
-    -   Double-click any media file to open a full-screen, centered preview.
+    -   Double-click any media file to open a full-screen preview.
     -   **Image Viewer**: Supports zooming (mouse wheel) and panning (drag).
     -   **Video/Audio Player**: Provides full playback controls.
-    -   **Gallery Navigation**: Use on-screen arrows or keyboard arrow keys (`Left`/`Right`) to cycle through all media.
--   **Independent Multi-Node Usage**:
-    -   Use multiple browser nodes in the same workflow without conflicts. Selections for images, videos, and audio are saved independently.
--   **Rich Metadata Output**:
-    -   The `info` output port provides detailed metadata for **selected images**, including basic info (dimensions) and **AI generation parameters** (prompts, workflows from ComfyUI/A1111) embedded in the image.
+    -   **Gallery Navigation**: Use on-screen arrows or keyboard keys to cycle through media.
+-   **Workflow Integration**:
+    -   **One-Click Workflow Loading** from images and videos via a "Workflow" badge.
+    -   A suite of **downstream nodes** for advanced processing of selected media.
 
+### ⚠️ Important Note on Dependencies
+
+To support powerful new features like video processing and safe file deletion, this version requires a few additional Python libraries.
+
+**New Dependencies & Their Purpose:**
+* **`moviepy`**: Used to generate thumbnails for video files in the gallery.
+* **`opencv-python-headless`**: Powers the frame extraction feature in the `Select Original Video` node.
+* **`torchaudio`**: Enables audio processing for the `Select Original Audio` and `Select Original Video` nodes.
+* **`send2trash`**: Ensures that deleting files is safer by sending them to the system's Recycle Bin/Trash instead of permanently deleting them.
+
+**Installation:**
+The easiest way to install these is through the **ComfyUI Manager**. After updating the custom node, the manager should detect the missing dependencies and prompt you to install them.
+
+If you prefer to install them manually, you can navigate to this custom node's directory (`ComfyUI/custom_nodes/ComfyUI_Local_Image_Gallery/`) in your terminal and run:
+`pip install -r requirements.txt`
 
 ### Installation
 
 1.  Navigate to your ComfyUI installation directory.
 2.  Go to the `ComfyUI/custom_nodes/` folder.
 3.  Clone or download this repository into the `custom_nodes` folder. The final folder structure should be `ComfyUI/custom_nodes/ComfyUI_Local_Image_Gallery/`.
-4.  Restart ComfyUI. No additional dependencies are required.
+4.  Restart ComfyUI.
 
 ### How to Use
 
-1.  **Add the Node**: Double-click on the canvas, search for `Local Media Manager`, and add the node.
-2.  **Browse**: Enter a full, absolute path to a folder in the "Path" input box and click "Refresh" or press `Enter`.
-3.  **Rate & Tag**:
-    -   Click the stars on any media card to assign a rating.
-    -   Single-click a card to select it. The "Edit Tags" panel will appear at the top. Type a tag and press `Enter` to add it. Click the `ⓧ` on a tag to remove it. Changes are saved and reflected instantly.
-4.  **Filter & Search**:
-    -   Enter a tag in the "Filter by Tag" input and press `Enter` or "Refresh" to filter the current folder.
-    -   To search for a tag everywhere, check the "全局" (Global) box before refreshing.
-    -   **Pro-Tip**: Clicking a tag on a card is a shortcut to performing a global search for that tag.
-5.  **Connect Outputs**:
-    -   `image`: Connect to an image input.
-    -   `video_path` / `audio_path`: Connect to nodes that accept a file path.
-    -   `info`: Connect to a `Show Text` node to view image metadata.
-6.  **Queue Prompt**: Run your workflow to use the selected media.
+#### 1. Main Node: `Local Media Manager`
+This is your central hub for all media operations.
+
+* **Browsing**:
+    * Click on the **breadcrumb navigation bar** to jump to parent directories or to manually type/paste a full path and press `Enter`.
+    * Use the **Path Presets** dropdown to save and quickly access frequent folders.
+    * Click the `⬆️ Up` button to go to the parent directory.
+* **Selection**:
+    * **Single Select**: Click a card to select it.
+    -   **Multi-Select**: `Ctrl+Click` to select multiple files. A sequence number will appear on each selected card.
+    -   **Select All**: Click the `All` button to select all visible files.
+* **File Management**:
+    * With files selected, use the `➔ Move` and `🗑️ Delete` buttons for batch operations.
+    * To **Rename**, select a single file, click the `✏️` icon on its card, and the rename field will appear in the "Edit Tags" panel above the gallery.
+* **Metadata**:
+    -   **Rating**: Click the stars on any card to assign a rating.
+    -   **Tagging**: Select one or more files. The "Edit Tags" panel will appear. Type a tag and press `Enter` to add it to all selected files. Click the `ⓧ` on a tag to remove it.
+
+#### 2. Downstream Nodes
+Connect these nodes to the outputs of the `Local Media Manager` to process your selections.
+
+* **`Select Original Image`**
+    -   **Purpose**: To isolate a single image from a multi-selection and prepare it for your workflow.
+    -   **Inputs**:
+        -   `paths`: Connect to the `paths` output of the main gallery node.
+        -   `index`: The sequence number (0, 1, 2...) of the image you want to select from the batch.
+        -   `generation_width`/`height`: Desired output dimensions.
+        -   `aspect_ratio_preservation`: How to handle resizing (stretch, crop, etc.).
+    -   **Outputs**:
+        -   `image`: The processed image tensor.
+        -   `positive_prompt`/`negative_prompt`: Extracts prompts from the image's metadata, if available.
+
+* **`Select Original Video`**
+    -   **Purpose**: To extract image frames and/or audio from a selected video file.
+    -   **Inputs**:
+        -   `paths`: Connect to the `paths` output of the main gallery node.
+        -   `index`: The sequence number of the video you want to select.
+        -   `frame_load_cap`: The maximum number of frames to extract.
+        -   `force_rate`: Force a specific frame rate for the output sequence.
+        -   `skip_first_frames`: Start extraction after skipping a number of initial frames.
+        -   `select_every_nth`: Sample the video by taking only every Nth frame.
+    -   **Outputs**:
+        -   `IMAGE`: A batch of image frames ready for use.
+        -   `audio`: The extracted audio track from the video.
+
+* **`Select Original Audio`**
+    -   **Purpose**: To load and trim a specific segment from an audio file.
+    -   **Inputs**:
+        -   `paths`: Connect to the `paths` output of the main gallery node.
+        -   `index`: The sequence number of the audio file you want to select.
+        -   `seek_seconds`: The start time (in seconds) for the audio clip.
+        -   `duration`: The desired length (in seconds) of the audio clip.
+    -   **Outputs**:
+        -   `audio`: The trimmed audio data.
 
 ---
 
 ## 🇨🇳 中文
+
+### 更新日志 (2025-09-17)
+* **完整的文件管理功能**：集成了全面的文件管理能力。现在您可以直接在UI界面中**移动**、**删除**（安全移至回收站）和**重命名**文件。
+* **UI/UX 重大升级**：
+    * 使用交互式的**面包屑导航栏**替代了原有的纯文本路径输入框，使文件夹跳转更直观、更快捷。
+    * 新增了**批量操作**按钮（`All`、`Move`, `Delete`），以高效地同时管理多个选定文件。
+    * 当选中单个文件进行编辑时，“编辑标签”面板中会显示**重命名**输入框。
+* **巨大的性能提升**：
+    * 实现了高性能的**虚拟化滚动图库**。这极大地提升了性能并降低了内存占用，即使是包含数千个文件的文件夹也能流畅浏览。
+    * 升级了后端，为目录列表和缩略图（包括新增的视频缩略图支持）提供了强大的**磁盘缓存系统**，显著加快了二次加载速度。
+* **新增高级媒体处理节点**：引入了一套强大的下游节点，以精确控制和使用您选择的媒体：
+    * **Select Original Image**：从多选的图片中选取指定一张，通过丰富的宽高比选项调整其尺寸，并提取其内嵌的提示词。
+    * **Select Original Video**：从指定的视频中提取帧序列，提供精细的控制选项（帧率、数量、跳过帧数），调整尺寸，并分离出音频轨道。
+    * **Select Original Audio**：根据开始时间和持续时长，从一个音频文件中精确截取所需的片段。
+* **一键加载工作流**：
+    * 现在可以从内嵌了元数据的图片**和视频**中直接加载 ComfyUI 工作流，只需单击新增的“Workflow”徽章即可。
 
 ### 更新日志 (2025-09-07)
 * **重大BUG修复**：修复了一个核心问题，即在任务队列正在处理时选择新的媒体文件，会导致工作流处理错误的选项。现在，当您点击“生成”时，所选的媒体会被正确地“锁定”到该任务中，确保了结果的准确性和可预测性。
@@ -112,64 +197,117 @@ The gallery features a fluid waterfall (masonry) layout, smooth transitions, and
 ### 更新日志 (2025-08-27)
 * **重大升级**: 实现了完整的 **工作流记忆** 系统。节点现在可以记住所有UI设置（路径、选择项、排序、筛选）并在重载后恢复。
 * **高级功能**: 新增了带序号的 **多选功能** (`Ctrl+单击`)、批量 **标签编辑**，以及对不同尺寸图片的智能 **批处理**。
-
 ---
 
 ### 概述
 
-**ComfyUI 本地媒体管理器** 已经进化为一个功能强大、特性丰富的自定义节点，它将一个无缝的本地文件管理系统直接集成到了您的 ComfyUI 工作流中。这一个统一的节点允许您浏览、管理和选择本地的图片、视频和音频文件，并能一键将它们本身或其元数据导入到您的项目中。它彻底消除了在操作系统文件浏览器和ComfyUI之间来回切换的烦恼，极大地加速了您的创作和整理流程。
+**ComfyUI 本地媒体管理器** 是一个功能强大、一体化的自定义节点，它将一个完整的本地文件管理系统直接集成到了您的 ComfyUI 工作流中。这一个统一的节点允许您浏览、管理、评级、标记和选择本地的图片、视频和音频文件，并能一键将它们本身或其元数据导入到您的项目中。它彻底消除了在操作系统文件浏览器和ComfyUI之间来回切换的烦恼，极大地加速了您的创作和整理流程。
 
-本插件的图库拥有一个流畅的响应式瀑布流布局、平滑的过渡动画和一个高级的灯箱预览器，确保了美观且高效的浏览与管理体验。
+本插件的图库拥有一个高性能的虚拟化滚动布局、强大的缓存系统和一个高级的灯箱预览器，即使面对海量媒体库，也能确保美观且高效的管理体验。
 
 ### 功能特性
 
 -   **一体化媒体中心**: 在一个强大的节点内即可浏览图片、视频和音频文件。
+-   **完整的文件管理**:
+    -   **移动**: 将选中文件移动到其他目录，支持路径预设以便快速访问。
+    -   **删除**: 安全地将选中文件移至操作系统的回收站。
+    -   **重命名**: 直接在UI界面内重命名单个文件。
 -   **完整的元数据管理**:
     -   **星级评分**: 为任何媒体文件赋予1到5星的评级。单击星星即可评分，再次单击可以取消评分。
-    -   **标签系统**: 为任何媒体文件添加或删除自定义标签，修改会立即保存。
+    -   **标签系统**: 为单个或多个文件批量添加或删除自定义标签。
 -   **高级导航与搜索**:
-    -   完整的文件夹/目录导航，包含一个用于返回上一级的“Up”按钮。
-    -   **全局标签搜索**: 只需勾选“全局”选框，即可根据一个标签**跨越您所有的硬盘和文件夹**进行搜索。
-    -   持久化记忆：节点会记住您最后访问的文件夹路径。
--   **强大的筛选与排序**:
-    -   通过专属的复选框来切换视频和音频文件的可见性。
-    -   可按**名称**、修改**日期**或**评分**对所有媒体进行排序。
-    -   可按特定标签对当前视图进行过滤。单击卡片上的标签会自动以全局模式搜索该标签。
+    -   交互式**面包屑导航栏**，轻松进行目录跳转。
+    -   **路径预设**功能，用于保存并快速访问常用文件夹。
+    -   **全局标签搜索**: 跨越您所有的硬盘和文件夹，搜索带有特定标签的文件。
+    -   **多标签筛选**: 使用 **AND/OR** 逻辑组合多个标签，进行精确搜索。
 -   **高性能图库**:
-    -   一个流畅的、响应式的瀑布流布局，能够智能地适应节点尺寸。
-    -   为图片提供了**性能优化的缩略图**，确保流畅滚动。
-    -   切换目录时拥有平滑的淡入淡出过渡效果。
+    -   **虚拟化滚动**的瀑布流布局，能以极低的内存占用轻松处理数千个文件。
+    -   为目录和缩略图（包括视频）提供后端**缓存**，实现近乎秒开的加载速度。
 -   **高级灯箱预览器**:
-    -   双击任意媒体文件即可打开一个全局居中的全屏预览器。
+    -   双击任意媒体文件即可打开一个全局全屏预览器。
     -   **图片查看器**: 支持使用鼠标滚轮进行**缩放**，并通过拖动进行**平移**。
-    -   **视频/音频播放器**: 在预览窗口内提供完整的播放控制功能。
-    -   **图库导航**: 使用界面上的箭头或键盘方向键（`左`/`右`）轻松切换浏览媒体。
--   **支持多节点独立使用**:
-    -   可在同一个工作流中使用多个本节点而不会产生冲突。图片、视频和音频的选择状态被独立保存。
--   **丰富的元数据输出**:
-    -   `info` 输出端口为**选中的图片**提供详细的元数据，不仅包括基本信息（尺寸），最重要的是，还能提取嵌入图片文件中的**AI生成参数**（例如来自 ComfyUI/A1111 的提示词和工作流）。
+    -   **视频/音频播放器**: 提供完整的播放控制功能。
+    -   **图库导航**: 使用界面上的箭头或键盘方向键轻松切换浏览媒体。
+-   **工作流集成**:
+    -   通过“Workflow”徽章从图片和视频中**一键加载工作流**。
+    -   提供一套**下游节点**，用于对所选媒体进行高级处理。
 
+### ⚠️ 关于依赖项的重要说明
+
+为了支持视频处理、安全删除文件等强大的新功能，此版本需要安装一些额外的Python库。
+
+**新增依赖及其用途：**
+* **`moviepy`**：用于在图库中为视频文件生成缩略图。
+* **`opencv-python-headless`**：为 `Select Original Video` 节点提供视频帧提取功能。
+* **`torchaudio`**：为 `Select Original Audio` 和 `Select Original Video` 节点提供音频处理能力。
+* **`send2trash`**：确保文件删除的安全性，它会将文件移至系统的回收站而不是永久删除。
+
+**安装说明：**
+最简单的安装方式是使用 **ComfyUI Manager**。在更新本插件后，管理器会自动检测到缺失的依赖项并提示您进行安装。
+
+如果您希望手动安装，可以打开终端，进入本插件的目录 (`ComfyUI/custom_nodes/ComfyUI_Local_Image_Gallery/`)，然后运行以下命令：
+`pip install -r requirements.txt`
 
 ### 安装说明
 
 1.  导航至您的 ComfyUI 安装目录。
 2.  进入 `ComfyUI/custom_nodes/` 文件夹。
 3.  将此插件的仓库克隆或下载到 `custom_nodes` 文件夹中。最终的文件夹结构应为 `ComfyUI/custom_nodes/ComfyUI_Local_Image_Gallery/`。
-4.  重启 ComfyUI。无需安装任何额外的依赖库。
+4.  重启 ComfyUI。
 
 ### 使用方法
 
-1.  **添加节点**: 在画布上双击，搜索 `Local Media Manager`，然后将该节点添加到您的图中。
-2.  **浏览**: 在“Path”输入框中输入一个完整的、绝对路径的文件夹地址，然后点击“Refresh”或按`回车键`。
-3.  **评级与标签**:
-    -   点击任意媒体卡片下方的星星来进行评分。
-    -   **单击**一个卡片以选中它，节点顶部的“Edit Tags”区域即会显示。输入新标签并按`回车`即可添加。点击标签旁的`ⓧ`可删除。所有更改都会被立即保存并实时显示。
-4.  **筛选与搜索**:
-    -   在“Filter by Tag”输入框中输入一个标签，然后按`回车`或点击“Refresh”即可筛选当前文件夹。
-    -   要进行全局搜索，只需在刷新前**勾选“全局”选框**即可。
-    -   **专业技巧**: 单击卡片上的任意标签，是执行该标签全局搜索的快捷方式。
-5.  **连接输出端口**:
-    -   `image`: 连接到任何需要图片输入的端口。
-    -   `video_path` / `audio_path`: 连接到任何接受文件路径的节点。
-    -   `info`: 连接到 `Show Text` (显示文本) 节点，以查看所选图片的详细元数据。
-6.  **执行工作流**: 点击 "Queue Prompt"，您为每种媒体类型所做的最新选择，其数据将被分别送入已连接的节点中。
+#### 1. 主节点: `Local Media Manager`
+这是您所有媒体操作的中心枢纽。
+
+* **浏览文件**:
+    * 点击**面包屑导航栏**可以跳转到上级目录，或者直接点击它来手动输入/粘贴完整路径，然后按`回车`。
+    * 使用**路径预设**下拉菜单可以保存并快速访问常用文件夹。
+    * 点击 `⬆️ Up` 按钮可以返回上一级目录。
+* **选择文件**:
+    * **单选**: 单击一个卡片来选中它。
+    -   **多选**: 按住 `Ctrl` 并单击卡片，可以选择多个文件。每个选中的文件上会显示一个序号。
+    -   **全选**: 点击 `All` 按钮，可以选中当前视图中的所有文件。
+* **文件管理**:
+    * 选中文件后，使用 `➔ Move` 和 `🗑️ Delete` 按钮进行批量操作。
+    * 要**重命名**文件，请先**单选**一个文件，然后点击其卡片右下角的 `✏️` 图标，此时图库上方的“编辑标签”区域会出现重命名输入框。
+* **管理元数据**:
+    -   **评级**: 点击任意卡片下方的星星来进行评分。
+    -   **标签**: 选中一个或多个文件后，“编辑标签”区域即会显示。输入新标签并按`回车`，即可将其添加到所有选中的文件中。点击标签旁的 `ⓧ` 可将其移除。
+
+#### 2. 下游节点
+将这些节点连接到 `Local Media Manager` 的输出端口，以处理您选择的媒体。
+
+* **`Select Original Image`**
+    -   **用途**: 从多选的图片中分离出特定一张，并为您的工作流做好准备。
+    -   **输入**:
+        -   `paths`: 连接到主图库节点的 `paths` 输出。
+        -   `index`: 您想从批次中选择的图片序号（从0开始）。
+        -   `generation_width`/`height`: 期望的输出图像尺寸。
+        -   `aspect_ratio_preservation`: 如何处理图像缩放（拉伸、裁剪等）。
+    -   **输出**:
+        -   `image`: 处理后的图像张量（Tensor）。
+        -   `positive_prompt`/`negative_prompt`: 如果图片元数据中存在，则提取其正负提示词。
+
+* **`Select Original Video`**
+    -   **用途**: 从选定的视频文件中提取图像帧和/或音频。
+    -   **输入**:
+        -   `paths`: 连接到主图库节点的 `paths` 输出。
+        -   `index`: 您想选择的视频序号。
+        -   `frame_load_cap`: 要提取的最大帧数。
+        -   `force_rate`: 强制指定输出序列的帧率。
+        -   `skip_first_frames`: 从视频开头跳过指定数量的帧后再开始提取。
+        -   `select_every_nth`: 通过仅提取每第N帧来进行采样。
+    -   **输出**:
+        -   `IMAGE`: 一批可直接使用的图像帧。
+        -   `audio`: 从视频中提取的音轨。
+
+* **`Select Original Audio`**
+    -   **用途**: 从一个音频文件中加载并截取特定片段。
+    -   **输入**:
+        -   `paths`: 连接到主图库节点的 `paths` 输出。
+        -   `index`: 您想选择的音频文件序号。
+        -   `seek_seconds`: 音频片段的开始时间（单位：秒）。
+        -   `duration`: 您想要的音频片段时长（单位：秒）。
+    -   **输出**:
+        -   `audio`: 截取后的音频数据。
