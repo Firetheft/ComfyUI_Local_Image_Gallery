@@ -17,7 +17,7 @@ import torchaudio
 import subprocess
 import re
 try:
-    from moviepy.editor import VideoFileClip
+    from moviepy import VideoFileClip
 except ImportError:
     print("LocalImageGallery: MoviePy not installed. Video thumbnail generation will be disabled. Please run 'pip install moviepy'.")
     VideoFileClip = None
