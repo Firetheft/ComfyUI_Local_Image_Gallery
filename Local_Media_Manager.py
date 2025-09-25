@@ -19,7 +19,7 @@ import re
 try:
     from moviepy.editor import VideoFileClip
 except ImportError:
-    print("LocalImageGallery: MoviePy not installed. Video thumbnail generation will be disabled. Please run 'pip install moviepy'.")
+    print("LocalMediaManager: MoviePy not installed. Video thumbnail generation will be disabled. Please run 'pip install moviepy'.")
     VideoFileClip = None
 
 VAE_STRIDE = (4, 8, 8)
@@ -47,7 +47,7 @@ ensure_cache_dirs()
 def save_config(data):
     try:
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4)
-    except Exception as e: print(f"LocalImageGallery: Error saving config: {e}")
+    except Exception as e: print(f"LocalMediaManager: Error saving config: {e}")
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -65,7 +65,7 @@ def load_metadata():
 def save_metadata(data):
     try:
         with open(METADATA_FILE, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4, ensure_ascii=False)
-    except Exception as e: print(f"LocalImageGallery: Error saving metadata: {e}")
+    except Exception as e: print(f"LocalMediaManager: Error saving metadata: {e}")
     DIRECTORY_CACHE.clear()
 
 def load_ui_state():
@@ -77,7 +77,7 @@ def load_ui_state():
 def save_ui_state(data):
     try:
         with open(UI_STATE_FILE, 'w', encoding='utf-8') as f: json.dump(data, f, indent=4)
-    except Exception as e: print(f"LocalImageGallery: Error saving UI state: {e}")
+    except Exception as e: print(f"LocalMediaManager: Error saving UI state: {e}")
 
 def extract_prompts(metadata):
     positive_prompts, negative_prompts = [], []
@@ -202,7 +202,7 @@ def extract_prompts(metadata):
         print(f"LMM Error: Failed to parse workflow. Error: {e}")
         return "", ""
 
-class LocalImageGalleryNode:
+class LocalMediaManagerNode:
     @classmethod
     def IS_CHANGED(cls, selection, **kwargs):
         return selection
@@ -1027,7 +1027,7 @@ async def get_thumbnail(request):
 
         return web.FileResponse(cache_path)
     except Exception as e:
-        print(f"LocalImageGallery: Error generating thumbnail for {filepath}: {e}")
+        print(f"LocalMediaManager: Error generating thumbnail for {filepath}: {e}")
         return web.Response(status=500)
 
 @prompt_server.routes.get("/local_image_gallery/view")
@@ -1189,13 +1189,13 @@ async def rename_file(request):
         return web.json_response({"status": "error", "message": str(e)}, status=500)    
 
 NODE_CLASS_MAPPINGS = {
-    "LocalImageGalleryNode": LocalImageGalleryNode,
+    "LocalMediaManagerNode": LocalMediaManagerNode,
     "SelectOriginalImageNode": SelectOriginalImageNode,
     "SelectOriginalVideoNode": SelectOriginalVideoNode,
     "SelectOriginalAudioNode": SelectOriginalAudioNode,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LocalImageGalleryNode": "Local Media Manager",
+    "LocalMediaManagerNode": "Local Media Manager",
     "SelectOriginalImageNode": "Select Original Image",
     "SelectOriginalVideoNode": "Select Original Video",
     "SelectOriginalAudioNode": "Select Original Audio",

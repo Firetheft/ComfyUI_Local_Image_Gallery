@@ -52,9 +52,9 @@ function setupGlobalLightbox() {
 setupGlobalLightbox();
 
 app.registerExtension({
-    name: "Comfy.LocalImageGallery",
+    name: "Comfy.LocalMediaManager",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "LocalImageGalleryNode") {
+        if (nodeData.name === "LocalMediaManagerNode") {
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 const r = onNodeCreated?.apply(this, arguments);
@@ -664,7 +664,7 @@ app.registerExtension({
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ node_id: nodeId, gallery_id: galleryId, state: state }),
                         });
-                    } catch(e) { console.error("LocalImageGallery: Failed to set UI state", e); }
+                    } catch(e) { console.error("LocalMediaManager: Failed to set UI state", e); }
                 }
                 
                 async function updateMetadata(path, { rating, tags }) {
@@ -1559,7 +1559,7 @@ app.registerExtension({
                             resetAndReload(false);
                         }
                     } catch (e) {
-                        console.error("LocalImageGallery: Unable to load the UI state:", e);
+                        console.error("LocalMediaManager: Unable to load the UI state:", e);
                         switchToBreadcrumb(false);
                         resetAndReload(false);
                     }

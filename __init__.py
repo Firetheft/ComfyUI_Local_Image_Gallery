@@ -1,4 +1,4 @@
-from .Local_Image_Gallery import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+from .Local_Media_Manager import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
 WEB_DIRECTORY = "./js"
 
